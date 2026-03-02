@@ -1,90 +1,96 @@
 {% extends 'base.html' %}
-{% block title %}{{ company.name }} {{ year }}년 — 공시 대시보드{% endblock %}
+{% block title %}{{ company.name if company else '테스트 기업' }} — 정보보호공시{% endblock %}
+
 {% block content %}
 
-<!-- 상단 네비게이션 -->
-<nav aria-label="breadcrumb" class="mb-3">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="/">홈</a></li>
-        <li class="breadcrumb-item active">{{ company.name }} / {{ year }}년</li>
-    </ol>
-</nav>
-
-<div class="d-flex justify-content-between align-items-start mb-4">
-    <div>
-        <h4 class="fw-bold mb-1">{{ company.name }}</h4>
-        <span class="text-muted">{{ year }}년도 정보보호공시</span>
-    </div>
-    <div class="d-flex gap-2">
-        <a href="/disclosure/{{ company.id }}/{{ year }}/review" class="btn btn-outline-success btn-sm">검토</a>
-        {% if session and session.status != 'submitted' %}
-        <a href="/disclosure/{{ company.id }}/{{ year }}/work" class="btn btn-primary btn-sm">작업 시작</a>
-        {% endif %}
-    </div>
-</div>
-
-<!-- 전체 진행률 -->
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="fw-semibold">전체 진행률</span>
-            <span class="fw-bold fs-5
-                {% if overall == 100 %}text-success
-                {% elif overall > 0 %}text-primary
-                {% else %}text-secondary{% endif %}">
-                {{ overall }}%
-            </span>
+<!-- Snowball Information Disclosure Dashboard (link11 Main Screen) -->
+<div id="dashboard-section" class="animate-fade-in">
+    <!-- Overall Progress (Top Stats) -->
+    <div
+        style="background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 40px; margin-bottom: 30px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 20px; align-items: center;">
+            <span style="font-weight: 800; color: #1e293b; font-size: 1.15rem;">전체 진행률</span>
+            <span style="font-weight: 800; color: #3b82f6; font-size: 1.5rem;">{{ overall }}%</span>
         </div>
-        <div class="progress" style="height:14px">
-            <div class="progress-bar
-                {% if overall == 100 %}bg-success
-                {% elif overall > 0 %}bg-primary
-                {% else %}bg-secondary{% endif %}"
-                style="width:{{ overall }}%"></div>
+        <div style="height: 16px; background: #e2e8f0; border-radius: 20px; overflow: hidden; margin-bottom: 15px;">
+            <div
+                style="height: 100%; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); width: {{ overall }}%; border-radius: 20px; transition: width 0.5s ease;">
+            </div>
         </div>
-        {% if session and session.status == 'submitted' %}
-        <div class="mt-2 text-success small fw-bold">✓ 공시 제출 완료</div>
-        {% endif %}
-    </div>
-</div>
-
-<!-- 카테고리별 카드 -->
-<div class="row g-3">
-{% for cat in categories %}
-<div class="col-md-6">
-    <div class="card h-100 shadow-sm">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="fw-bold mb-0">
-                    <span class="badge bg-dark me-2">{{ cat.id }}</span>{{ cat.name }}
-                </h6>
-                <span class="fw-bold
-                    {% if cat.rate == 100 %}text-success
-                    {% elif cat.rate > 0 %}text-primary
-                    {% else %}text-muted{% endif %}">
-                    {{ cat.rate }}%
-                </span>
-            </div>
-            <div class="progress mb-3" style="height:8px">
-                <div class="progress-bar
-                    {% if cat.rate == 100 %}bg-success
-                    {% elif cat.rate > 0 %}bg-primary
-                    {% else %}bg-secondary{% endif %}"
-                    style="width:{{ cat.rate }}%"></div>
-            </div>
-            <div class="text-muted small mb-3">
-                {{ cat.completed }} / {{ cat.total }} 항목 완료
-            </div>
-            <a href="/disclosure/{{ company.id }}/{{ year }}/work?category={{ cat.id }}"
-               class="btn btn-sm
-                {% if cat.rate == 100 %}btn-outline-success
-                {% else %}btn-outline-primary{% endif %} w-100">
-                {% if cat.rate == 100 %}✓ 완료 (수정){% else %}작업하기{% endif %}
-            </a>
+        <div style="text-align: center; color: #64748b; font-size: 0.95rem; font-weight: 600;">
+            응답 완료: {{ categories|sum(attribute='completed') }} / {{ categories|sum(attribute='total') }} 질문
         </div>
     </div>
-</div>
-{% endfor %}
+
+    <!-- Stats 4-Grid (Investment, Personnel, Cert, Activity) -->
+    <div class="dashboard-grid mb-5">
+        <div class="stat-card">
+            <div class="stat-icon investment">
+                <i class="fas fa-hand-holding-usd"></i>
+            </div>
+            <div class="stat-value"><span id="dashboard-inv-ratio">{{ ratios.investment_ratio }}</span><small
+                    style="font-size: 1.2rem; font-weight: 600; color: #0ea5e9;">%</small></div>
+            <div class="stat-label">정보보호 투자 비율 (B/A)</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon personnel">
+                <i class="fas fa-user-shield"></i>
+            </div>
+            <div class="stat-value"><span id="dashboard-per-ratio">{{ ratios.personnel_ratio }}</span><small
+                    style="font-size: 1.2rem; font-weight: 600; color: #10b981;">%</small></div>
+            <div class="stat-label">정보보호 인력 비율 ((D1+D2)/C)</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon certification">
+                <i class="fas fa-medal"></i>
+            </div>
+            <div class="stat-value">
+                <span id="dashboard-cert-count">{{ cert_count }}</span>
+            </div>
+            <div class="stat-label">보유 인증 건수</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon activity">
+                <i class="fas fa-rocket"></i>
+            </div>
+            <div class="stat-value">
+                <span id="dashboard-act-score">{{ (overall / 10)|round(1) }}</span>
+            </div>
+            <div class="stat-label">보안 활동 지수</div>
+        </div>
+    </div>
+
+    <!-- Category Grid (Categories leading to separate screens) -->
+    <h3 class="mb-4" style="font-weight: 800; color: #1e293b; font-size: 1.3rem;"><i
+            class="fas fa-folder-open text-primary me-2"></i>카테고리별 질문</h3>
+    <div class="category-grid mb-5">
+        {% for cat in categories %}
+        <div class="category-card"
+            onclick="location.href='/disclosure/{{ company.id }}/{{ year }}/work?category={{ cat.id }}'">
+            <div class="category-header">
+                <div
+                    class="category-icon stat-icon {% if cat.id == 1 %}investment{% elif cat.id == 2 %}personnel{% elif cat.id == 3 %}certification{% else %}activity{% endif %}">
+                    <i
+                        class="fas {% if cat.id == 1 %}fa-piggy-bank{% elif cat.id == 2 %}fa-users{% elif cat.id == 3 %}fa-certificate{% else %}fa-shield-alt{% endif %}"></i>
+                </div>
+                <div class="category-title">{{ cat.name }}</div>
+            </div>
+            <div class="category-progress">
+                <div class="category-stats">{{ cat.completed }}/{{ cat.total }}</div>
+                <div
+                    class="category-badge {% if cat.rate == 100 %}complete{% elif cat.rate > 0 %}in-progress{% else %}not-started{% endif %}">
+                    {{ '완료' if cat.rate == 100 else ('진행' if cat.rate > 0 else '미착수') }}
+                </div>
+            </div>
+            <div style="height: 6px; background: #e2e8f0; border-radius: 10px; overflow: hidden; margin-top: 15px;">
+                <div
+                    style="height: 100%; background: {% if cat.rate == 100 %}#10b981{% else %}#3b82f6{% endif %}; width: {{ cat.rate }}%; border-radius: 10px;">
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
 </div>
 
 {% endblock %}

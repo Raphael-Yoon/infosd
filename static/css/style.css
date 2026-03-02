@@ -1,7 +1,756 @@
-/* infopd 커스텀 스타일 */
-body {
-    background-color: #f8f9fa;
+/* 
+ * InfoPD — Official Snowball Disclosure Design System (v0.07.1)
+ * Author: 개발1팀 조윤진 (Snowball UI/UX Architect)
+ * Target: 100% Visual Parity with Snowball link11 System
+ */
+
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+
+:root {
+    --primary-color: #3b82f6;
+    --primary-dark: #2563eb;
+    --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    --card-radius: 12px;
+    --bg-main: #f8fafc;
+    --text-dark: #1e293b;
+    --text-muted: #64748b;
+    --border-color: #e2e8f0;
+    --header-height: 80px;
+    --snowball-dark: #334155;
+    --snowball-red: #ef4444;
 }
+
+body {
+    background-color: #ffffff;
+    color: var(--text-dark);
+    font-family: 'Pretendard', sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding-top: var(--header-height);
+}
+
+/* Navbar */
+.navbar {
+    background: #ffffff !important;
+    border-bottom: 2px solid #f1f5f9;
+    height: var(--header-height);
+}
+
 .navbar-brand {
-    letter-spacing: 1px;
+    font-weight: 850;
+    font-size: 1.5rem;
+    letter-spacing: -1.2px;
+    color: #1e293b !important;
+}
+
+/* Dashboard Layout */
+.container-disclosure {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+/* Question Card (Snowball Master Layout) */
+.question-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 25px 30px;
+    border: 1px solid #dae1e7;
+    margin-bottom: 25px;
+    position: relative;
+    transition: transform 0.2s ease;
+}
+
+.question-card.is-child {
+    box-shadow: none !important;
+    border-color: #e2e8f0;
+    background: #ffffff;
+}
+
+.question-card.level-2 {
+    margin-left: 40px;
+}
+
+.question-card.level-3 {
+    margin-left: 80px;
+}
+
+.q-badge {
+    background: #334155;
+    color: white;
+    padding: 3px 14px;
+    border-radius: 20px;
+    font-weight: 800;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+}
+
+.q-badge.level-2 {
+    background: #64748b;
+}
+
+.q-badge.level-3 {
+    background: #94a3b8;
+}
+
+.q-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-left: 10px;
+}
+
+.btn-reset {
+    background: #ef4444;
+    color: #ffffff !important;
+    font-weight: 700;
+    font-size: 0.85rem;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 15px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.help-box {
+    background: #f1f5f9;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: #475569;
+    margin-bottom: 20px;
+    font-weight: 500;
+}
+
+/* Snowball Professional Input (Right Aligned) */
+.premium-number-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    border: 1px solid #dae1e7;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.snowball-input {
+    border: none !important;
+    text-align: right;
+    font-size: 1.5rem !important;
+    font-weight: 800 !important;
+    padding: 10px 20px !important;
+    flex-grow: 1;
+    color: #1e293b;
+    background: #ffffff !important;
+}
+
+.unit-label {
+    padding: 0 15px;
+    font-weight: 800;
+    color: #1e293b;
+    font-size: 1.1rem;
+    background: white;
+}
+
+/* YES/NO Buttons (link11-style) */
+.q-select-btn {
+    border: 1px solid #dae1e7;
+    background: #ffffff;
+    color: #1e293b;
+    font-size: 1.1rem !important;
+    font-weight: 800 !important;
+    border-radius: 4px !important;
+    padding: 18px 0 !important;
+    transition: all 0.2s ease;
+}
+
+.q-select-btn.yes:hover,
+.q-select-btn.yes.active {
+    background: #dcfce7 !important;
+    border-color: #22c55e !important;
+    color: #166534 !important;
+}
+
+.q-select-btn.no:hover,
+.q-select-btn.no.active {
+    background: #ffffff !important;
+    border-color: #334155 !important;
+    color: #1e293b !important;
+}
+
+/* Investment Group Specific Layout (Snowball 3-Column Sync) */
+.investment-group-container {
+    background: #ffffff;
+    border: 1px solid #dae1e7;
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 25px;
+}
+
+.group-header-row {
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+.summary-row {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    padding: 15px 25px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-weight: 800;
+    color: #1e293b;
+    font-size: 1.1rem;
+}
+
+.ratio-alert-box {
+    background: #eff6ff;
+    border: 2px solid #dbeafe;
+    color: #1e40af;
+    padding: 12px 25px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.flash-blue {
+    animation: flashBlue 2s infinite alternate;
+}
+
+@keyframes flashBlue {
+    from {
+        border-color: #dbeafe;
+    }
+
+    to {
+        border-color: #3b82f6;
+    }
+}
+
+.three-col-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.dashed-card {
+    border: 2px dashed #cbd5e1 !important;
+    background: #ffffff;
+    padding: 20px !important;
+    border-radius: 10px !important;
+    text-align: center;
+}
+
+.dashed-card .q-badge {
+    transform: scale(0.9);
+    margin-bottom: 10px;
+}
+
+.dashed-card .q-title {
+    display: block;
+    margin: 0 0 15px 0;
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+.dashed-card .snowball-input {
+    background: #f8fafc !important;
+    border-radius: 6px !important;
+    font-size: 1.2rem !important;
+}
+
+/* Evidence Area */
+.evidence-box {
+    background: #fefce8;
+    border: 1px solid #f9eb95;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 15px;
+}
+
+.eb-header {
+    font-weight: 850;
+    color: #854d0e;
+    margin-bottom: 12px;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.eb-tag {
+    background: #ffffff;
+    border: 1px solid #fef08a;
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #a16207;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+}
+
+.btn-upload {
+    background: #d97706 !important;
+    color: white !important;
+    font-weight: 800;
+    padding: 8px 20px;
+    border-radius: 4px;
+    border: none;
+    margin-top: 10px;
+}
+
+.uploaded-file-tag {
+    background: white;
+    border: 1px solid #e2e8f0;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Textarea & Actions */
+.premium-textarea {
+    border: 1px solid #dae1e7 !important;
+    border-radius: 8px !important;
+    resize: none;
+    font-size: 1rem !important;
+    color: #1e293b !important;
+}
+
+.premium-textarea:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1) !important;
+}
+
+.btn-premium-action {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white !important;
+    padding: 12px 40px;
+    border-radius: 50px;
+    font-weight: 800;
+    border: none;
+    box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4);
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s ease;
+}
+
+.btn-premium-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 25px -5px rgba(37, 99, 235, 0.5);
+}
+
+/* Category Cards */
+.category-card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.category-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+    border-color: var(--primary-color);
+}
+
+.cat-color-1 {
+    background: linear-gradient(135deg, #3b82f6 0%, #0ea5e9 100%);
+}
+
+.cat-color-2 {
+    background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+}
+
+.cat-color-3 {
+    background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+}
+
+.cat-color-4 {
+    background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+}
+
+.category-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    margin-bottom: 15px;
+}
+
+/* Animations */
+.animate-slide-up {
+    animation: slideUp 0.4s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* --- [ 개발3팀 : Snowball Link11 Premium Design Package ] --- */
+.investment-grid-section {
+    margin-top: 3rem;
+    margin-bottom: 4rem;
+}
+
+.investment-card {
+    min-height: 220px;
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+    background: rgba(248, 250, 252, 0.8) !important;
+    border: 2px dashed #e2e8f0 !important;
+    cursor: pointer;
+}
+
+.investment-card:hover {
+    transform: translateY(-8px);
+    border-color: #3b82f6 !important;
+    background: #ffffff !important;
+    box-shadow: 0 15px 30px -10px rgba(59, 130, 246, 0.2);
+}
+
+.premium-input-field {
+    border: none !important;
+    color: #1e293b;
+    padding-bottom: 0.5rem;
+    outline: none !important;
+}
+
+.premium-input-field:focus {
+    border-bottom-color: #2563eb !important;
+}
+
+/* [작업화면(work.html) 전용 폼 컴포넌트 이식] */
+.yes-no-buttons {
+    display: flex;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.yes-no-btn {
+    flex: 1;
+    border: 1px solid #e2e8f0;
+    background: white;
+    padding: 16px 20px;
+    font-size: 1.1rem;
+    font-weight: 800;
+    border-radius: 12px;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.yes-no-btn:hover {
+    border-color: #94a3b8;
+    transform: translateY(-2px);
+}
+
+.yes-no-btn:active {
+    transform: scale(0.98);
+}
+
+.yes-no-btn.selected.yes {
+    background: #dcfce7 !important;
+    border-color: #22c55e !important;
+    color: #166534 !important;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+}
+
+.yes-no-btn.selected.no {
+    background: #fee2e2 !important;
+    border-color: #ef4444 !important;
+    color: #991b1b !important;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+
+.number-input,
+.text-input {
+    background: #fdfdfd;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px 20px;
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+}
+
+.number-input:focus,
+.text-input:focus {
+    background: white;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    outline: none;
+}
+
+.text-input {
+    width: 100%;
+    font-family: 'Pretendard', 'Inter', sans-serif;
+    font-size: 1rem;
+    line-height: 1.6;
+    box-sizing: border-box;
+    resize: vertical;
+}
+
+.evidence-section {
+    background: #fafafa;
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 25px;
+}
+
+.evidence-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 8px;
+}
+
+.evidence-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.evidence-item {
+    background: #e0f2fe;
+    color: #0369a1;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+}
+
+.evidence-upload-btn {
+    background: #1e293b;
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.evidence-upload-btn:hover {
+    background: #0f172a;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* ------------------------------------------------------------------ */
+
+.standard-question-card {
+    transition: all 0.3s ease;
+    border-radius: 24px !important;
+}
+
+.standard-question-card:hover {
+    border-color: #f1f5f9 !important;
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.05) !important;
+}
+
+.footer-action-bar {
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+    animation: slideUp 0.6s ease-out;
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translate(-50%, 100px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+    }
+}
+
+/* ------------------------------------------------------------------ */
+
+/* [대시보드 전용 프리미엄 CSS 이식] */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 25px;
+}
+
+.stat-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 30px;
+    text-align: left;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px -10px rgba(59, 130, 246, 0.2);
+    border-color: #3b82f6;
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: white;
+    margin-bottom: 10px;
+}
+
+.stat-icon.investment {
+    background: linear-gradient(135deg, #3b82f6 0%, #0ea5e9 100%);
+}
+
+.stat-icon.personnel {
+    background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+}
+
+.stat-icon.certification {
+    background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+}
+
+.stat-icon.activity {
+    background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 850;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.stat-label {
+    color: #64748b;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 25px;
+}
+
+.category-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 24px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+}
+
+.category-card:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 15px 25px -10px rgba(59, 130, 246, 0.2);
+    transform: scale(1.02);
+}
+
+.category-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.category-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.category-progress {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 15px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.category-stats {
+    font-size: 0.9rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.category-badge {
+    padding: 5px 14px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 800;
+}
+
+.category-badge.complete {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.category-badge.in-progress {
+    background: #fef9c3;
+    color: #854d0e;
+}
+
+.category-badge.not-started {
+    background: #f1f5f9;
+    color: #475569;
 }

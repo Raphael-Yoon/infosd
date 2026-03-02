@@ -1,9 +1,29 @@
 {% extends 'base.html' %}
-{% block title %}오류 {{ code }}{% endblock %}
+{% block title %}Error {{ code }}{% endblock %}
 {% block content %}
-<div class="text-center py-5">
-    <h1 class="display-4 text-muted">{{ code }}</h1>
-    <p class="lead">{{ message }}</p>
-    <a href="{{ url_for('company.index') }}" class="btn btn-outline-secondary">홈으로</a>
+<div class="stat-card text-center py-5 my-5 animate-fade-in border shadow-sm bg-white">
+    <div class="mb-4">
+        <div class="stat-icon bg-danger-subtle mx-auto shadow-none"
+            style="width: 100px; height: 100px; border-radius: 50%;">
+            <i class="fas fa-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
+        </div>
+    </div>
+    <h1 class="display-3 fw-bold text-dark mb-2">{{ code }}</h1>
+    <h4 class="fw-bold text-secondary mb-4">{{ message }}</h4>
+    <p class="text-muted mb-5 mx-auto" style="max-width: 500px;">
+        요청하신 작업을 처리하는 중 예상치 못한 문제가 발생했습니다. <br>
+        일시적인 오류일 수 있으니 잠시 후 다시 시도해 주시기 바랍니다.
+    </p>
+    <div class="d-flex justify-content-center gap-3">
+        <a href="{{ url_for('company.index') }}" class="btn-primary-custom px-5 py-3">
+            <i class="fas fa-home me-2"></i>메인 화면으로 이동
+        </a>
+    </div>
 </div>
+
+<style>
+    .bg-danger-subtle {
+        background-color: rgba(239, 68, 68, 0.1) !important;
+    }
+</style>
 {% endblock %}

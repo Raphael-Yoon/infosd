@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from flask import (Blueprint, render_template, request, redirect,
-                   url_for, flash, jsonify, send_from_directory, abort)
+                   url_for, flash, jsonify, send_from_directory, abort, session)
 from db_config import get_db
 
 bp_disclosure = Blueprint('disclosure', __name__, url_prefix='/disclosure')
@@ -19,6 +19,48 @@ MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 
 CATEGORY_NAMES = {1: '정보보호 투자', 2: '정보보호 인력', 3: '정보보호 인증', 4: '정보보호 활동'}
 YES_VALUES = ('YES', 'Y', 'TRUE', '1', '예', '네')
+
+# ============================================================================
+# Snowball Link11 - QID 상수 및 검증 로직 이식 (v0.10)
+# ============================================================================
+class QID:
+    """정보보호공시 질문 ID 상수 (Snowball 100% 동기화)"""
+    # 카테고리 1: 정보보호 투자
+    INV_HAS_INVESTMENT = "Q1"      # 정보보호 투자 발생 여부
+    INV_IT_AMOUNT = "Q2"           # 정보기술부문 투자액 A
+    INV_SEC_GROUP = "Q3"           # 정보보호부문 투자액 B Group
+    INV_SEC_DEPRECIATION = "Q4"    # 감가상각비
+    INV_SEC_SERVICE = "Q5"         # 서비스비용
+    INV_SEC_LABOR = "Q6"           # 인건비
+    INV_HAS_PLAN = "Q7"            # 향후 투자 계획 여부
+    INV_PLAN_AMOUNT = "Q8"         # 예정 투자액
+    INV_MAIN_ITEMS = "Q27"         # 주요 투자 항목 (신규)
+
+    # 카테고리 2: 정보보호 인력
+    PER_HAS_TEAM = "Q9"            # 전담 부서/인력 여부
+    PER_TOTAL_EMPLOYEES = "Q10"    # 총 임직원 수
+    PER_INTERNAL = "Q11"           # 내부 전담인력 수
+    PER_EXTERNAL = "Q12"           # 외주 전담인력 수
+    PER_HAS_CISO = "Q13"           # CISO/CPO 지정 여부
+    PER_CISO_DETAIL = "Q14"        # CISO/CPO 상세 현황
+    PER_IT_EMPLOYEES = "Q28"       # 정보기술인력(C) (신규)
+    PER_CISO_ACTIVITY = "Q29"      # CISO 활동내역 (신규)
+
+    # 카테고리 3: 정보보호 인증
+    CERT_HAS_CERT = "Q15"          # 인증 보유 여부
+    CERT_DETAIL = "Q16"            # 인증 보유 현황
+
+    # 카테고리 4: 정보보호 활동
+    ACT_HAS_ACTIVITY = "Q17"       # 이용자 보호 활동 여부
+    ACT_IT_ASSET = "Q18"           # IT 자산 관리
+    ACT_TRAINING = "Q19"           # 교육/훈련 실적
+    ACT_PROCEDURE = "Q20"          # 지침/절차서
+    ACT_VULN_ASSESS = "Q21"        # 취약점 분석
+    ACT_ZERO_TRUST = "Q22"         # 제로트러스트
+    ACT_SBOM = "Q23"               # SBOM
+    ACT_CTAS = "Q24"               # C-TAS
+    ACT_DRILL = "Q25"              # 모의훈련
+    ACT_INSURANCE = "Q26"          # 배상책임보험
 
 
 def _generate_uuid():
@@ -241,7 +283,7 @@ def dashboard(company_id, year):
                 continue
             categories[cat_id]['total'] += 1
             if _is_question_active(q, questions_dict, answers):
-                if q['id'] in answers and answers[q['id']] not in (None, '', 'N/A'):
+                if q['id'] in answers and answers[q['id']] not in (None, ''):
                     categories[cat_id]['completed'] += 1
             elif _is_question_skipped(q, questions_dict, answers):
                 categories[cat_id]['completed'] += 1
@@ -250,21 +292,29 @@ def dashboard(company_id, year):
         total_q, total_done = 0, 0
         for cat_id in sorted(categories):
             c = categories[cat_id]
-            c['rate'] = round((c['completed'] / c['total']) * 100) if c['total'] > 0 else 0
+            c['rate'] = int((c['completed'] / c['total']) * 100) if c['total'] > 0 else 0
             cat_list.append(c)
             total_q += c['total']
             total_done += c['completed']
 
-        overall = round((total_done / total_q) * 100) if total_q > 0 else 0
+        overall = int((total_done / total_q) * 100) if total_q > 0 else 0
 
-        session_row = conn.execute(
-            'SELECT * FROM ipd_sessions WHERE company_id=? AND year=?', (company_id, year)
-        ).fetchone()
-        session = dict(session_row) if session_row else None
+        # 투자 및 인력 비율 계산
+        ratios = _calculate_ratios(conn, company_id, year, answers)
+        
+        # 보유 인증 건수 계산 (Category 3 질문 중 YES인 항목 수 또는 증빙 수)
+        # 여기서는 단순하게 Q16이 YES이거나 관련 항목에 답변이 있는 경우 등으로 계산할 수 있으나,
+        # 일단 Category 3 (ID: 3)에 해당하는 질문들 중 답변이 있는 항목 수를 건수로 표시
+        cert_count = 0
+        cat3_questions = [q['id'] for q in all_questions if q['category_id'] == 3 and q['type'] != 'group']
+        for qid in cat3_questions:
+            if qid in answers and answers[qid] not in (None, '', 'NO', 'N/A'):
+                cert_count += 1
 
     return render_template('disclosure/dashboard.html',
                            company=dict(company), year=year,
-                           categories=cat_list, overall=overall, session=session)
+                           categories=cat_list, overall=overall, session=session,
+                           ratios=ratios, cert_count=cert_count)
 
 
 # ============================================================
@@ -319,15 +369,59 @@ def work(company_id, year):
             q['is_active'] = _is_question_active(q, questions_dict, answers)
             q['is_skipped'] = _is_question_skipped(q, questions_dict, answers)
 
-        categories = [dict(r) for r in conn.execute(
-            'SELECT DISTINCT category_id, category FROM ipd_questions ORDER BY category_id'
-        ).fetchall()]
+        # 카테고리별 진행률 계산 (사이드바용)
+        # 전체 카테고리 목록과 각 카테고리의 통계 계산
+        cat_stats_rows = conn.execute('''
+            SELECT category_id, category, 
+                   COUNT(*) as total,
+                   SUM(CASE WHEN status='completed' OR status='skipped' THEN 1 ELSE 0 END) as done
+            FROM ipd_questions q
+            LEFT JOIN ipd_answers a ON q.id = a.question_id AND a.company_id = ? AND a.year = ?
+            WHERE q.type != 'group'
+            GROUP BY category_id
+            ORDER BY category_id
+        ''', (company_id, year)).fetchall()
+
+        sidebar_categories = []
+        for r in cat_stats_rows:
+            sidebar_categories.append({
+                'id': r['category_id'],
+                'name': r['category'],
+                'total': r['total'],
+                'done': r['done'],
+                'rate': int((r['done'] / r['total']) * 100) if r['total'] > 0 else 0
+            })
+
+        current_category_name = next((c['name'] for c in sidebar_categories if c['id'] == category_id), "Unknown")
+        
+        # 전체 진행률 가져오기
+        ipd_session = conn.execute(
+            'SELECT completion_rate FROM ipd_sessions WHERE company_id=? AND year=?',
+            (company_id, year)
+        ).fetchone()
+        overall_progress = ipd_session['completion_rate'] if ipd_session else 0
+        
+        current_cat_stat = next((c for c in sidebar_categories if c['id'] == category_id), None)
+        current_progress = current_cat_stat['rate'] if current_cat_stat else 0
+
+        if request.args.get('api'):
+            return jsonify({
+                'questions': questions,
+                'answers': answers,
+                'evidence': evidence_map,
+                'sidebar_categories': sidebar_categories,
+                'overall_progress': overall_progress
+            })
 
     return render_template('disclosure/work.html',
                            company=dict(company), year=year,
                            questions=questions, answers=answers, answer_ids=answer_ids,
-                           evidence_map=evidence_map, categories=categories,
-                           current_category=category_id)
+                           evidence=evidence_map, 
+                           sidebar_categories=sidebar_categories,
+                           current_category_id=category_id, 
+                           current_category_name=current_category_name,
+                           current_progress=current_progress,
+                           overall_progress=overall_progress)
 
 
 # ============================================================
@@ -336,7 +430,7 @@ def work(company_id, year):
 
 @bp_disclosure.route('/api/answer', methods=['POST'])
 def save_answer():
-    """답변 저장 (JSON API)"""
+    """답변 저장 (Snowball 검증 엔진 이식)"""
     try:
         data = request.get_json()
         question_id = data.get('question_id')
@@ -352,11 +446,13 @@ def save_answer():
             value = json.dumps(value, ensure_ascii=False)
 
         with get_db() as conn:
-            # 숫자 필드 음수 방지
-            q_info = conn.execute(
-                'SELECT type FROM ipd_questions WHERE id=?', (question_id,)
-            ).fetchone()
-            if q_info and q_info['type'] == 'number' and value is not None:
+            # 0. 숫자 필드 음수 방지 및 콤마 제거
+            numeric_fields = [
+                QID.INV_IT_AMOUNT, QID.INV_SEC_GROUP, QID.INV_SEC_DEPRECIATION,
+                QID.INV_SEC_SERVICE, QID.INV_SEC_LABOR, QID.INV_PLAN_AMOUNT,
+                QID.PER_TOTAL_EMPLOYEES, QID.PER_IT_EMPLOYEES, QID.PER_INTERNAL, QID.PER_EXTERNAL
+            ]
+            if question_id in numeric_fields and value is not None:
                 try:
                     num_val = float(str(value).replace(',', ''))
                     if num_val < 0:
@@ -364,60 +460,61 @@ def save_answer():
                 except ValueError:
                     pass
 
-            # 투자액 검증: 정보보호 투자액(B) <= 정보기술 투자액(A)
-            inv_b_ids = ['Q4', 'Q5', 'Q6']
-            if question_id in inv_b_ids or question_id == 'Q2':
-                b_rows = conn.execute(
-                    'SELECT question_id, value FROM ipd_answers WHERE question_id IN (?,?,?) AND company_id=? AND year=? AND deleted_at IS NULL',
-                    ('Q4', 'Q5', 'Q6', company_id, year)
-                ).fetchall()
-                b_vals = {r['question_id']: r['value'] for r in b_rows}
-                if question_id in inv_b_ids:
-                    b_vals[question_id] = value
-                q2_row = conn.execute(
-                    'SELECT value FROM ipd_answers WHERE question_id=? AND company_id=? AND year=? AND deleted_at IS NULL',
-                    ('Q2', company_id, year)
-                ).fetchone()
+            # 1. 인력 수 계층 검증 (총 임직원 >= IT 인력 >= 보안 인력)
+            personnel_ids = [QID.PER_TOTAL_EMPLOYEES, QID.PER_IT_EMPLOYEES, QID.PER_INTERNAL, QID.PER_EXTERNAL]
+            if question_id in personnel_ids:
+                cursor = conn.execute('''
+                    SELECT question_id, value FROM ipd_answers
+                    WHERE question_id IN (?, ?, ?, ?) AND company_id = ? AND year = ? AND deleted_at IS NULL
+                ''', (*personnel_ids, company_id, year))
+                per_vals = {row['question_id']: row['value'] for row in cursor.fetchall()}
+                per_vals[question_id] = value
+
                 try:
-                    val_a = float(str(value).replace(',', '')) if question_id == 'Q2' \
-                        else (float(str(q2_row['value']).replace(',', '')) if q2_row and q2_row['value'] else 0)
+                    total_emp = float(str(per_vals.get(QID.PER_TOTAL_EMPLOYEES, 0) or 0).replace(',', ''))
+                    it_emp = float(str(per_vals.get(QID.PER_IT_EMPLOYEES, 0) or 0).replace(',', ''))
+                    internal = float(str(per_vals.get(QID.PER_INTERNAL, 0) or 0).replace(',', ''))
+                    external = float(str(per_vals.get(QID.PER_EXTERNAL, 0) or 0).replace(',', ''))
+                    security_total = internal + external
+
+                    if total_emp > 0 and it_emp > total_emp:
+                        return jsonify({'success': False, 'message': f'정보기술부문 인력({int(it_emp)}명)은 총 임직원 수({int(total_emp)}명)를 초과할 수 없습니다.'}), 400
+                    if it_emp > 0 and security_total > it_emp:
+                        return jsonify({'success': False, 'message': f'정보보호 전담인력({int(security_total)}명)은 정보기술부문 인력({int(it_emp)}명)을 초과할 수 없습니다.'}), 400
+                except ValueError:
+                    pass
+
+            # 2. 정보보호 투자액 검증 (B <= A)
+            inv_b_ids = [QID.INV_SEC_DEPRECIATION, QID.INV_SEC_SERVICE, QID.INV_SEC_LABOR]
+            if question_id in inv_b_ids or question_id == QID.INV_IT_AMOUNT:
+                cursor = conn.execute('''
+                    SELECT question_id, value FROM ipd_answers
+                    WHERE question_id IN (?, ?, ?) AND company_id = ? AND year = ? AND deleted_at IS NULL
+                ''', (*inv_b_ids, company_id, year))
+                b_vals = {row['question_id']: row['value'] for row in cursor.fetchall()}
+                b_vals[question_id] = value
+
+                cursor = conn.execute(
+                    'SELECT value FROM ipd_answers WHERE question_id=? AND company_id=? AND year=? AND deleted_at IS NULL',
+                    (QID.INV_IT_AMOUNT, company_id, year)
+                )
+                q_a = cursor.fetchone()
+                try:
+                    val_a = float(str(value).replace(',', '')) if question_id == QID.INV_IT_AMOUNT \
+                        else (float(str(q_a['value']).replace(',', '')) if q_a and q_a['value'] else 0)
                     if val_a > 0:
                         val_b = sum(float(str(b_vals.get(qid, 0) or 0).replace(',', '')) for qid in inv_b_ids)
                         if val_b > val_a:
-                            return jsonify({'success': False,
-                                            'message': f'정보보호 투자액(B) {int(val_b):,}원이 정보기술 투자액(A) {int(val_a):,}원을 초과합니다.'}), 400
+                            return jsonify({'success': False, 'message': f'정보보호 투자액(B) {int(val_b):,}원이 정보기술 투자액(A) {int(val_a):,}원을 초과합니다.'}), 400
                 except ValueError:
                     pass
 
-            # 인력 계층 검증
-            per_ids = ['Q10', 'Q28', 'Q11', 'Q12']
-            if question_id in per_ids:
-                per_rows = conn.execute(
-                    'SELECT question_id, value FROM ipd_answers WHERE question_id IN (?,?,?,?) AND company_id=? AND year=? AND deleted_at IS NULL',
-                    (*per_ids, company_id, year)
-                ).fetchall()
-                per_vals = {r['question_id']: r['value'] for r in per_rows}
-                per_vals[question_id] = value
-                try:
-                    total_emp = float(str(per_vals.get('Q10', 0) or 0).replace(',', ''))
-                    it_emp = float(str(per_vals.get('Q28', 0) or 0).replace(',', ''))
-                    internal = float(str(per_vals.get('Q11', 0) or 0).replace(',', ''))
-                    external = float(str(per_vals.get('Q12', 0) or 0).replace(',', ''))
-                    sec_total = internal + external
-                    if total_emp > 0 and it_emp > total_emp:
-                        return jsonify({'success': False,
-                                        'message': f'IT 인력({int(it_emp)}명)은 총 임직원({int(total_emp)}명)을 초과할 수 없습니다.'}), 400
-                    if it_emp > 0 and sec_total > it_emp:
-                        return jsonify({'success': False,
-                                        'message': f'정보보호 전담인력({int(sec_total)}명)은 IT 인력({int(it_emp)}명)을 초과할 수 없습니다.'}), 400
-                except ValueError:
-                    pass
-
-            # 답변 저장 (UPSERT)
+            # 3. 답변 저장 (UPSERT)
             existing = conn.execute(
                 'SELECT id FROM ipd_answers WHERE question_id=? AND company_id=? AND year=?',
                 (question_id, company_id, year)
             ).fetchone()
+            
             if existing:
                 conn.execute('''
                     UPDATE ipd_answers SET value=?, status='completed',
@@ -431,7 +528,8 @@ def save_answer():
                     VALUES (?,?,?,?,?,'completed')
                 ''', (answer_id, question_id, company_id, year, value))
 
-            # YES/NO 연동 처리
+            # 4. YES/NO 연동 처리 (Dependent questions cleansing)
+            q_info = conn.execute('SELECT type FROM ipd_questions WHERE id=?', (question_id,)).fetchone()
             if q_info and q_info['type'] == 'yes_no':
                 if _is_yes(str(value)):
                     _clear_na_from_dependents(conn, question_id, company_id, year)
@@ -442,6 +540,11 @@ def save_answer():
             _update_session_progress(conn, company_id, year)
 
         return jsonify({'success': True, 'answer_id': answer_id})
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
     except Exception as e:
         import traceback
@@ -602,11 +705,27 @@ def review(company_id, year):
         # 투자 비율 계산
         ratios = _calculate_ratios(conn, company_id, year, answers)
 
+        # 답변이 없는 가상 세션 객체 보완
+        if not session:
+            session = {'completion_rate': 0, 'status': 'draft', 'id': None}
+            
+        # 전체 진행률 계산
+        total_q = sum(1 for q in all_questions if q['type'] != 'group')
+        done_q = 0
+        for q in all_questions:
+            if q['type'] == 'group': continue
+            if _is_question_active(q, questions_dict, answers):
+                if q['id'] in answers and answers[q['id']] not in (None, '', 'N/A'):
+                    done_q += 1
+            elif _is_question_skipped(q, questions_dict, answers):
+                done_q += 1
+        overall = round((done_q / total_q) * 100) if total_q > 0 else 0
+
     return render_template('disclosure/review.html',
                            company=dict(company), year=year,
-                           categories=sorted(categories.values(), key=lambda x: x['id']),
-                           answers=answers, evidence_map=evidence_map,
-                           session=session, ratios=ratios)
+                           questions=questions_dict,
+                           answers=answers, evidence=evidence_map,
+                           session=session, ratios=ratios, overall=overall)
 
 
 def _calculate_ratios(conn, company_id, year, answers=None):

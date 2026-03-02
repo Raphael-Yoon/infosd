@@ -1,198 +1,246 @@
 {% extends 'base.html' %}
-{% block title %}{{ company.name }} {{ year }}년 — 공시 작업{% endblock %}
+{% block title %}{{ company.name }} — 자료 작성{% endblock %}
+
+{% block head %}
+<style>
+    /* Final Work Screen Synergies (Snowball Sync) */
+    .questions-section {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 40px;
+        box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    .nav-pill-custom {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        color: #64748b;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.2s;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    .nav-pill-custom.active {
+        background: var(--accent-gradient);
+        color: white;
+        border: none;
+        box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
+    }
+
+    .questions-container {
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb" class="mb-3">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="/">홈</a></li>
-        <li class="breadcrumb-item">
-            <a href="/disclosure/{{ company.id }}/{{ year }}">{{ company.name }} / {{ year }}년</a>
-        </li>
-        <li class="breadcrumb-item active">작업</li>
-    </ol>
-</nav>
 
-<!-- 카테고리 탭 -->
-<ul class="nav nav-tabs mb-4">
-{% for cat in categories %}
-<li class="nav-item">
-    <a class="nav-link {% if cat.category_id == current_category %}active fw-bold{% endif %}"
-       href="/disclosure/{{ company.id }}/{{ year }}/work?category={{ cat.category_id }}">
-        {{ cat.category_id }}. {{ cat.category }}
+<!-- Back Button & Category Navigation -->
+<div class="mb-5 d-flex justify-content-between align-items-center animate-fade-in flex-wrap gap-3">
+    <a href="/disclosure/{{ company.id }}/{{ year }}"
+        class="btn btn-white shadow-sm rounded-pill px-4 py-3 fw-bold border">
+        <i class="fas fa-arrow-left me-2 text-primary"></i>공시 현황으로 돌아가기
     </a>
-</li>
-{% endfor %}
-</ul>
 
-<div id="save-status" class="alert alert-success d-none small py-2" role="alert">저장되었습니다.</div>
-<div id="save-error" class="alert alert-danger d-none small py-2" role="alert"></div>
+    <div class="d-flex gap-2">
+        {% for cat in sidebar_categories %}
+        <a href="/disclosure/{{ company.id }}/{{ year }}/work?category={{ cat.id }}"
+            class="nav-pill-custom {% if current_category_id == cat.id %}active{% endif %}">
+            <i
+                class="fas {% if cat.id == 1 %}fa-piggy-bank{% elif cat.id == 2 %}fa-users{% elif cat.id == 3 %}fa-certificate{% else %}fa-shield-alt{% endif %}"></i>
+            {{ cat.name }}
+        </a>
+        {% endfor %}
+    </div>
 
-<!-- 질문 목록 -->
-<div class="questions-container">
-{% for q in questions %}
-<div class="question-block mb-3 {% if not q.is_active and not q.is_skipped %}d-none{% endif %}"
-     id="qblock-{{ q.id }}"
-     data-question-id="{{ q.id }}"
-     data-level="{{ q.level }}"
-     data-type="{{ q.type }}"
-     data-parent="{{ q.parent_question_id or '' }}"
-     data-dependents="{{ q.dependent_question_ids or '[]' }}">
+    <a href="/disclosure/{{ company.id }}/{{ year }}/review" class="btn-premium-action px-5">최종 리뷰</a>
+</div>
 
-    <div class="card {% if q.level > 1 %}ms-{{ (q.level - 1) * 3 }} border-start border-primary border-3{% endif %}">
-        <div class="card-body py-3">
-            <!-- 질문 헤더 -->
-            <div class="d-flex align-items-start gap-2 mb-2">
-                <span class="badge bg-secondary mt-1 flex-shrink-0">{{ q.display_number }}</span>
-                <div class="flex-grow-1">
-                    <label class="form-label mb-1 fw-semibold">{{ q.text }}</label>
-                    {% if q.help_text %}
-                    <div class="text-muted small">{{ q.help_text }}</div>
-                    {% endif %}
+<div class="questions-container animate-fade-in">
+    <h3 class="fw-bold mb-4 px-2">
+        <i
+            class="fas {% if current_category_id == 1 %}fa-piggy-bank{% elif current_category_id == 2 %}fa-users{% elif current_category_id == 3 %}fa-certificate{% else %}fa-shield-alt{% endif %} me-2 text-primary"></i>
+        {{ current_category_name }}
+    </h3>
+
+    <div id="questions-container" class="space-y-8 pb-20 mt-4">
+        {% for q in questions %}
+        {% if q.is_active %}
+        <!-- 카테고리 1: 투자인 경우 Q3(Group) 하위에 Q4, Q5, Q6를 그리드로 배치 -->
+        {% if q.id == 'Q3' %}
+        <div class="investment-grid-section mb-12">
+            <div class="section-title mb-6 flex items-center">
+                <div class="w-1.5 h-6 bg-blue-600 rounded-full mr-3"></div>
+                <h4 class="text-xl font-bold text-slate-800">정보보호부문 투자액 (B) 상세</h4>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {% for sub_q in questions if sub_q.id in ['Q4', 'Q5', 'Q6'] %}
+                <div
+                    class="investment-card premium-card border-2 border-dashed border-slate-200 rounded-3xl p-6 bg-slate-50/50 hover:border-blue-400 hover:bg-white transition-all group">
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="text-[10px] font-black tracking-widest text-slate-400 uppercase">Item {{ loop.index
+                            }}</span>
+                        <i class="fas fa-coins text-slate-200 group-hover:text-blue-100 transition-colors"></i>
+                    </div>
+                    <h5 class="text-sm font-bold text-slate-600 mb-6 leading-tight h-10">{{ sub_q.text }}</h5>
+                    <div class="relative">
+                        <input type="text" id="input-{{ sub_q.id }}" value="{{ answers.get(sub_q.id, '') }}"
+                            class="premium-input-field w-full text-right font-mono text-xl font-black pr-12 focus:ring-0 border-b-2 border-slate-200 bg-transparent focus:border-blue-600 transition-all"
+                            placeholder="0" onchange="saveAnswer('{{ sub_q.id }}', this.value)">
+                        <span class="absolute right-0 bottom-2 text-slate-400 font-bold text-sm">원</span>
+                    </div>
                 </div>
-                {% if q.is_skipped %}
-                <span class="badge bg-light text-secondary flex-shrink-0">해당없음</span>
-                {% elif answers.get(q.id) %}
-                <span class="badge bg-success flex-shrink-0" id="done-{{ q.id }}">✓</span>
-                {% else %}
-                <span class="badge bg-warning text-dark flex-shrink-0" id="done-{{ q.id }}">미완료</span>
-                {% endif %}
+                {% endfor %}
+            </div>
+            <!-- 실시간 합계 대시보드 (Snowball 특유의 요약바) -->
+            <div class="mt-6 p-6 bg-slate-900 rounded-3xl flex justify-between items-center shadow-xl shadow-slate-200">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center mr-4">
+                        <i class="fas fa-calculator text-blue-400"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Total Amount
+                        </p>
+                        <p class="text-sm font-bold text-white">정보보호 투자액 합계 (B)</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span id="investment-sum-b" class="text-2xl font-black text-white font-mono">0</span>
+                    <span class="text-xs text-slate-400 font-bold ml-1">KRW</span>
+                </div>
+            </div>
+        </div>
+        {% elif q.id not in ['Q4', 'Q5', 'Q6'] %}
+        <!-- 스노우볼 표준 질문 카드 -->
+        <div class="standard-question-card bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-100 transition-all mb-8 relative group"
+            id="card-{{ q.id }}">
+            <div class="flex justify-between items-start mb-6">
+                <div class="flex items-start">
+                    <div
+                        class="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 font-black text-xs mr-5 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
+                        {{ q.display_number or q.id }}
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-800 mb-3 leading-snug">{{ q.text }}</h3>
+                        {% if q.help_text %}
+                        <div
+                            class="help-content bg-slate-50 p-5 rounded-2xl border-l-4 border-slate-200 text-sm text-slate-500 leading-relaxed italic">
+                            <i class="fas fa-info-circle mr-2 text-slate-300"></i> {{ q.help_text | safe }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <button onclick="resetAnswer('{{ q.id }}')"
+                    class="opacity-0 group-hover:opacity-100 text-slate-200 hover:text-red-400 p-2 transition-all"
+                    title="답변 초기화">
+                    <i class="fas fa-undo-alt"></i>
+                </button>
             </div>
 
-            <!-- 입력 필드 -->
-            {% if q.type == 'group' %}
-                <div class="text-muted small fst-italic">하위 항목을 모두 입력하세요.</div>
-
-            {% elif q.type == 'yes_no' %}
-                <div class="btn-group" role="group">
-                    <input type="radio" class="btn-check" name="yn-{{ q.id }}" id="yes-{{ q.id }}"
-                           value="YES" {% if answers.get(q.id) == 'YES' %}checked{% endif %}>
-                    <label class="btn btn-outline-success btn-sm" for="yes-{{ q.id }}">예</label>
-                    <input type="radio" class="btn-check" name="yn-{{ q.id }}" id="no-{{ q.id }}"
-                           value="NO" {% if answers.get(q.id) == 'NO' %}checked{% endif %}>
-                    <label class="btn btn-outline-danger btn-sm" for="no-{{ q.id }}">아니오</label>
+            <div class="input-container pl-[60px]">
+                {% if q.type == 'yes_no' %}
+                <div class="yes-no-buttons">
+                    <button id="btn-{{ q.id }}-YES" onclick="selectYesNo('{{ q.id }}', 'YES')"
+                        class="yes-no-btn yes {% if answers.get(q.id) == 'YES' %}selected{% endif %}">
+                        YES
+                    </button>
+                    <button id="btn-{{ q.id }}-NO" onclick="selectYesNo('{{ q.id }}', 'NO')"
+                        class="yes-no-btn no {% if answers.get(q.id) == 'NO' %}selected{% endif %}">
+                        NO
+                    </button>
                 </div>
-
-            {% elif q.type == 'number' %}
-                <div class="input-group" style="max-width:280px">
-                    <input type="number" class="form-control form-control-sm"
-                           id="input-{{ q.id }}" min="0" step="1"
-                           value="{{ answers.get(q.id, '') }}"
-                           placeholder="숫자 입력"
-                           {% if q.is_skipped %}disabled{% endif %}>
-                    {% if '투자액' in q.text or '인건비' in q.text or '감가상각' in q.text or '비용' in q.text %}
-                    <span class="input-group-text">원</span>
-                    {% elif '인원' in q.text or '인력' in q.text %}
-                    <span class="input-group-text">명</span>
-                    {% elif '건' in q.text %}
-                    <span class="input-group-text">건</span>
-                    {% endif %}
+                {% elif q.type == 'number' %}
+                <div class="currency-input-wrapper" style="position: relative; max-width: 300px;">
+                    <input type="text" id="input-{{ q.id }}" value="{{ answers.get(q.id, '') }}" class="number-input"
+                        style="width: 100%; box-sizing: border-box;" placeholder="0"
+                        onchange="saveAnswer('{{ q.id }}', this.value)">
+                    <span
+                        style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); color: #64748b; font-weight: 700; font-size: 0.9rem;">
+                        {{ '원' if '투자액' in q.text else ('명' if '인력' in q.text else '') }}
+                    </span>
                 </div>
+                {% elif q.type == 'textarea' %}
+                <textarea id="input-{{ q.id }}" class="text-input" rows="4" placeholder="내용을 상세히 기재해 주세요."
+                    onchange="saveAnswer('{{ q.id }}', this.value)">{{ answers.get(q.id, '') }}</textarea>
+                {% endif %}
 
-            {% elif q.type == 'select' %}
-                <select class="form-select form-select-sm" style="max-width:320px"
-                        id="input-{{ q.id }}"
-                        {% if q.is_skipped %}disabled{% endif %}>
-                    <option value="">-- 선택 --</option>
-                    {% for opt in q.options_list %}
-                    <option value="{{ opt }}" {% if answers.get(q.id) == opt %}selected{% endif %}>{{ opt }}</option>
-                    {% endfor %}
-                </select>
-
-            {% elif q.type == 'checkbox' %}
-                <div id="input-{{ q.id }}">
-                    {% set checked_vals = answers.get(q.id, '') %}
-                    {% for opt in q.options_list %}
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input chk-{{ q.id }}" type="checkbox"
-                               value="{{ opt }}" id="chk-{{ q.id }}-{{ loop.index }}"
-                               {% if opt in checked_vals %}checked{% endif %}
-                               {% if q.is_skipped %}disabled{% endif %}>
-                        <label class="form-check-label small" for="chk-{{ q.id }}-{{ loop.index }}">{{ opt }}</label>
+                <!-- 증빙 자료 섹션 -->
+                {% if q.evidence_title %}
+                <div class="evidence-section">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                        <div>
+                            <div class="evidence-title"><i class="fas fa-paperclip mr-1" style="color: #64748b;"></i> 필수
+                                증빙</div>
+                            <!-- JSON 형태의 문자열이 온 경우 리스트로 표시하도록 파싱 (Jinja 필터 부족시 프론트엔드에서 처리) -->
+                            <div class="evidence-list">
+                                {% if '[' in q.evidence_title %}
+                                {% for ev in q.evidence_title.replace('[', '').replace(']', '').replace('"',
+                                '').replace("'", "").split(',') %}
+                                <span class="evidence-item">{{ ev.strip() }}</span>
+                                {% endfor %}
+                                {% else %}
+                                <span class="evidence-item">{{ q.evidence_title }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <label class="evidence-upload-btn cursor-pointer"
+                            style="font-size: 0.85rem; padding: 8px 14px;">
+                            <i class="fas fa-upload mr-1"></i> 파일 선택
+                            <input type="file" class="hidden" style="display:none;"
+                                onchange="uploadEvidence('{{ q.id }}', this.files[0])">
+                        </label>
                     </div>
-                    {% endfor %}
-                </div>
 
-            {% elif q.type == 'textarea' %}
-                <textarea class="form-control form-control-sm" id="input-{{ q.id }}"
-                          rows="3" style="max-width:600px"
-                          placeholder="내용을 입력하세요"
-                          {% if q.is_skipped %}disabled{% endif %}>{{ answers.get(q.id, '') }}</textarea>
-
-            {% elif q.type == 'table' %}
-                <div class="table-input-area mb-2" id="table-{{ q.id }}">
-                    {% if answers.get(q.id) %}
-                        {% set rows = answers.get(q.id) | from_json_or_default([]) %}
-                        {% for row in rows %}
-                        <div class="table-row d-flex gap-2 mb-2">
-                            {% for col in q.options_list %}
-                            <input type="text" class="form-control form-control-sm flex-grow-1"
-                                   placeholder="{{ col }}" value="{{ row.get(col, '') if row is mapping else '' }}"
-                                   data-col="{{ col }}" data-row="{{ loop.index0 }}"
-                                   {% if q.is_skipped %}disabled{% endif %}>
-                            {% endfor %}
-                            {% if not q.is_skipped %}
-                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTableRow(this)">×</button>
-                            {% endif %}
+                    <div id="evidence-list-{{ q.id }}" style="display: flex; flex-direction: column; gap: 8px;">
+                        {% for ev in evidence.get(q.id, []) %}
+                        <div class="p-3 bg-white border border-slate-200 rounded-2xl flex items-center justify-between"
+                            id="ev-{{ ev.id }}"
+                            style="border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: border-color 0.2s;">
+                            <div class="flex items-center min-w-0"
+                                style="display: flex; align-items: center; gap: 10px;">
+                                <div
+                                    style="width: 30px; height: 30px; border-radius: 8px; background: #fee2e2; display: flex; align-items: center; justify-content: center; color: #ef4444;">
+                                    <i class="far fa-file-pdf" style="margin: auto;"></i>
+                                </div>
+                                <span
+                                    style="font-size: 0.85rem; font-weight: 600; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;">{{
+                                    ev.file_name }}</span>
+                            </div>
+                            <button onclick="deleteEvidence('{{ q.id }}', '{{ ev.id }}')"
+                                style="background: none; border: none; padding: 4px 8px; font-size: 1rem; color: #94a3b8; cursor: pointer; transition: color 0.2s;"
+                                onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">
+                                <i class="fas fa-times"></i>
+                            </button>
                         </div>
                         {% endfor %}
-                    {% endif %}
-                </div>
-                {% if not q.is_skipped %}
-                <button type="button" class="btn btn-sm btn-outline-secondary"
-                        onclick="addTableRow('{{ q.id }}', {{ q.options_list | tojson }})">
-                    + 행 추가
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-primary ms-1"
-                        onclick="saveTableAnswer('{{ q.id }}', '{{ company.id }}', {{ year }})">
-                    저장
-                </button>
-                {% endif %}
-            {% endif %}
-
-            <!-- 증빙 자료 -->
-            {% if q.type not in ['group'] and not q.is_skipped %}
-            <div class="mt-3 pt-2 border-top">
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <span class="small text-muted">증빙 자료</span>
-                    <label class="btn btn-outline-secondary btn-sm" style="cursor:pointer">
-                        파일 업로드
-                        <input type="file" class="d-none" multiple
-                               onchange="uploadEvidence(this, '{{ q.id }}', '{{ company.id }}', {{ year }})">
-                    </label>
-                </div>
-                <div id="evidence-list-{{ q.id }}" class="small">
-                    {% if evidence_map.get(q.id) %}
-                    {% for ev in evidence_map.get(q.id) %}
-                    <div class="d-flex align-items-center gap-2 mb-1" id="ev-{{ ev.id }}">
-                        <a href="{{ ev.file_url }}" target="_blank" class="text-decoration-none">{{ ev.file_name }}</a>
-                        <button type="button" class="btn btn-sm btn-link text-danger p-0"
-                                onclick="deleteEvidence('{{ ev.id }}')">삭제</button>
                     </div>
-                    {% endfor %}
-                    {% endif %}
                 </div>
+                {% endif %}
             </div>
-            {% endif %}
         </div>
+        {% endif %}
+        {% endif %}
+        {% endfor %}
     </div>
-</div>
-{% endfor %}
-</div>
 
-<!-- 하단 네비게이션 -->
-<div class="d-flex justify-content-between mt-4">
-    <a href="/disclosure/{{ company.id }}/{{ year }}" class="btn btn-outline-secondary">← 대시보드</a>
-    <div class="d-flex gap-2">
-        {% if current_category > 1 %}
-        <a href="/disclosure/{{ company.id }}/{{ year }}/work?category={{ current_category - 1 }}"
-           class="btn btn-outline-primary">← 이전</a>
-        {% endif %}
-        {% if current_category < 4 %}
-        <a href="/disclosure/{{ company.id }}/{{ year }}/work?category={{ current_category + 1 }}"
-           class="btn btn-primary">다음 →</a>
-        {% else %}
-        <a href="/disclosure/{{ company.id }}/{{ year }}/review" class="btn btn-success">검토하기 →</a>
-        {% endif %}
+    <!-- Footer 액션바 -->
+    <div
+        class="footer-action-bar fixed bottom-10 left-1/2 -translate-x-1/2 z-50 bg-white/80 backdrop-blur-xl border border-white p-2 rounded-[32px] shadow-2xl shadow-blue-200/50 flex gap-2">
+        <a href="/disclosure/{{ company.id }}/{{ year }}"
+            class="px-8 py-4 rounded-[26px] bg-slate-50 text-slate-600 font-black text-xs tracking-widest hover:bg-slate-100 transition-all">DASHBOARD</a>
+        <button onclick="location.reload()"
+            class="btn-premium-action px-10 py-4 rounded-[26px] bg-blue-600 text-white font-black text-xs tracking-widest shadow-xl shadow-blue-200 hover:scale-105 transition-all">SAVE
+            & FINISH</button>
     </div>
 </div>
 
@@ -200,179 +248,85 @@
 
 {% block scripts %}
 <script>
-const COMPANY_ID = "{{ company.id }}";
-const YEAR = {{ year }};
-
-// ─── 답변 자동 저장 ───────────────────────────────
-function saveAnswer(questionId, value) {
-    fetch('/disclosure/api/answer', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({question_id: questionId, value: value, company_id: COMPANY_ID, year: YEAR})
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showStatus('저장되었습니다.', 'success');
-            updateDoneBadge(questionId, value);
-        } else {
-            showStatus(data.message || '저장 실패', 'error');
+    // 100% Snowball Interaction Engine
+    function saveAnswer(qId, value) {
+        // 숫자 포맷팅 (콤마 처리)
+        if (typeof value === 'string' && value.match(/^[0-9,.]+$/)) {
+            value = value.replace(/,/g, '');
         }
-    })
-    .catch(e => showStatus('저장 중 오류 발생', 'error'));
-}
 
-function showStatus(msg, type) {
-    const el = type === 'success' ? document.getElementById('save-status') : document.getElementById('save-error');
-    const other = type === 'success' ? document.getElementById('save-error') : document.getElementById('save-status');
-    other.classList.add('d-none');
-    el.textContent = msg;
-    el.classList.remove('d-none');
-    setTimeout(() => el.classList.add('d-none'), 2500);
-}
-
-function updateDoneBadge(questionId, value) {
-    const badge = document.getElementById('done-' + questionId);
-    if (!badge) return;
-    if (value !== null && value !== '' && value !== undefined) {
-        badge.className = 'badge bg-success flex-shrink-0';
-        badge.textContent = '✓';
-    } else {
-        badge.className = 'badge bg-warning text-dark flex-shrink-0';
-        badge.textContent = '미완료';
+        fetch(`/disclosure/api/answer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                question_id: qId,
+                value: value,
+                company_id: '{{ company.id }}',
+                year: '{{ year }}'
+            })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    alert('⚠️ 검증 오류: ' + data.message);
+                    // 입력값 복구 등은 추후 정밀 고도화
+                } else {
+                    updateDashboard();
+                    // YES/NO 연동 질문 처리를 위한 리로드 (스노우볼 패턴)
+                    if (value === 'YES' || value === 'NO' || value === '') {
+                        setTimeout(() => location.reload(), 100);
+                    }
+                }
+            });
     }
-}
 
-// YES/NO 라디오
-document.querySelectorAll('input[type="radio"].btn-check').forEach(radio => {
-    radio.addEventListener('change', function() {
-        const qid = this.name.replace('yn-', '');
-        saveAnswer(qid, this.value);
-        // 하위 질문 표시 제어
-        updateDependents(qid, this.value === 'YES');
-    });
-});
+    function selectYesNo(qId, value) {
+        saveAnswer(qId, value);
+    }
 
-function updateDependents(parentId, isYes) {
-    document.querySelectorAll(`[data-parent="${parentId}"]`).forEach(block => {
-        if (isYes) {
-            block.classList.remove('d-none');
-        } else {
-            block.classList.add('d-none');
-            // 하위의 하위도 숨김
-            const childId = block.dataset.questionId;
-            updateDependents(childId, false);
-        }
-    });
-}
+    function resetAnswer(qId) {
+        if (!confirm('🚨 이 항목의 모든 데이터를 초기화하시겠습니까?')) return;
+        saveAnswer(qId, '');
+    }
 
-// 숫자/select/textarea 자동저장 (debounce)
-let saveTimers = {};
-function debounceSave(qid, value, delay) {
-    clearTimeout(saveTimers[qid]);
-    saveTimers[qid] = setTimeout(() => saveAnswer(qid, value), delay || 800);
-}
-
-document.querySelectorAll('input[type="number"], select, textarea').forEach(el => {
-    const qid = el.id.replace('input-', '');
-    if (!qid || el.disabled) return;
-    el.addEventListener('change', () => debounceSave(qid, el.value, 0));
-    el.addEventListener('input', () => debounceSave(qid, el.value, 800));
-});
-
-// 체크박스
-document.querySelectorAll('[class^="chk-"]').forEach(chk => {
-    chk.addEventListener('change', function() {
-        const cls = this.className.split(' ').find(c => c.startsWith('chk-'));
-        const qid = cls.replace('chk-', '');
-        const checked = Array.from(document.querySelectorAll('.' + cls + ':checked')).map(c => c.value);
-        saveAnswer(qid, JSON.stringify(checked));
-    });
-});
-
-// ─── 테이블 입력 ─────────────────────────────────
-function addTableRow(qid, cols) {
-    const container = document.getElementById('table-' + qid);
-    const row = document.createElement('div');
-    row.className = 'table-row d-flex gap-2 mb-2';
-    const rowIdx = container.querySelectorAll('.table-row').length;
-    cols.forEach(col => {
-        const inp = document.createElement('input');
-        inp.type = 'text';
-        inp.className = 'form-control form-control-sm flex-grow-1';
-        inp.placeholder = col;
-        inp.dataset.col = col;
-        inp.dataset.row = rowIdx;
-        row.appendChild(inp);
-    });
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'btn btn-sm btn-outline-danger';
-    btn.textContent = '×';
-    btn.onclick = () => removeTableRow(btn);
-    row.appendChild(btn);
-    container.appendChild(row);
-}
-
-function removeTableRow(btn) {
-    btn.closest('.table-row').remove();
-}
-
-function saveTableAnswer(qid, companyId, year) {
-    const container = document.getElementById('table-' + qid);
-    const rows = [];
-    container.querySelectorAll('.table-row').forEach(rowEl => {
-        const obj = {};
-        rowEl.querySelectorAll('input[data-col]').forEach(inp => {
-            obj[inp.dataset.col] = inp.value;
+    function updateDashboard() {
+        let sumB = 0;
+        ['Q4', 'Q5', 'Q6'].forEach(id => {
+            const el = document.getElementById('input-' + id);
+            if (el) sumB += (parseFloat(el.value.replace(/,/g, '')) || 0);
         });
-        if (Object.values(obj).some(v => v.trim())) rows.push(obj);
-    });
-    saveAnswer(qid, JSON.stringify(rows));
-}
+        const sumEl = document.getElementById('investment-sum-b');
+        if (sumEl) sumEl.innerText = sumB.toLocaleString();
+    }
 
-// ─── 증빙 자료 ───────────────────────────────────
-function uploadEvidence(input, qid, companyId, year) {
-    Array.from(input.files).forEach(file => {
+    function uploadEvidence(qid, file) {
+        if (!file) return;
         const fd = new FormData();
         fd.append('file', file);
         fd.append('question_id', qid);
-        fd.append('company_id', companyId);
-        fd.append('year', year);
-        fetch('/disclosure/api/evidence', {method: 'POST', body: fd})
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                const list = document.getElementById('evidence-list-' + qid);
-                const div = document.createElement('div');
-                div.className = 'd-flex align-items-center gap-2 mb-1';
-                div.id = 'ev-' + data.evidence_id;
-                div.innerHTML = `<a href="${data.file_url}" target="_blank" class="text-decoration-none">${data.file_name}</a>
-                    <button type="button" class="btn btn-sm btn-link text-danger p-0"
-                            onclick="deleteEvidence('${data.evidence_id}')">삭제</button>`;
-                list.appendChild(div);
-                showStatus('파일 업로드 완료', 'success');
-            } else {
-                showStatus(data.message || '업로드 실패', 'error');
-            }
-        });
-    });
-    input.value = '';
-}
+        fd.append('company_id', '{{ company.id }}');
+        fd.append('year', '{{ year }}');
 
-function deleteEvidence(evidenceId) {
-    if (!confirm('증빙 파일을 삭제하시겠습니까?')) return;
-    fetch('/disclosure/api/evidence/' + evidenceId, {method: 'DELETE'})
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            document.getElementById('ev-' + evidenceId)?.remove();
-            showStatus('파일 삭제 완료', 'success');
-        }
-    });
-}
+        fetch(`/disclosure/api/evidence`, { method: 'POST', body: fd })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) location.reload();
+                else alert('업로드 실패: ' + data.message);
+            });
+    }
 
-// JSON 파싱 헬퍼 (Jinja2 필터 대체)
-// 이미 from_json_or_default를 서버에서 처리하나, 클라이언트 초기화용
+    function deleteEvidence(qid, eid) {
+        if (!confirm('파일을 삭제하시겠습니까?')) return;
+        fetch(`/disclosure/api/evidence/${eid}`, { method: 'DELETE' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) location.reload();
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        updateDashboard();
+        // 숫자 필드 자동 포맷팅 등 추가 가능
+    });
 </script>
 {% endblock %}
