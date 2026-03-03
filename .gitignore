@@ -11,10 +11,10 @@ venv/
 dist/
 build/
 
-# 데이터베이스 (민감 데이터)
-infopd.db
-*.db
-*.sqlite3
+# 데이터베이스 (사용자 요청으로 추적 허용)
+# infopd.db
+# *.db
+# *.sqlite3
 
 # 업로드 파일 (증빙 자료)
 uploads/

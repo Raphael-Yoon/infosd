@@ -499,6 +499,7 @@ body {
     padding: 16px 20px;
     font-size: 1.1rem;
     transition: all 0.2s ease;
+    text-align: right;
 }
 
 .number-input:focus,
