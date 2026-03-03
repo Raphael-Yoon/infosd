@@ -3,6 +3,15 @@
 
 {% block content %}
 
+<!-- Logo Header -->
+<div class="text-center animate-fade-in pb-4" style="padding-top: 80px;">
+    <a href="{{ url_for('company.index') }}">
+        <img src="{{ url_for('static', filename='images/logos/logo.png') }}"
+             alt="정보보호공시 시스템 로고"
+             style="max-width: 480px; width: 100%; height: auto; mix-blend-mode: multiply;">
+    </a>
+</div>
+
 <!-- Snowball Information Disclosure Dashboard (link11 Main Screen) -->
 <div id="dashboard-section" class="animate-fade-in">
     <!-- Overall Progress (Top Stats) -->

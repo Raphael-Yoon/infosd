@@ -1,5 +1,5 @@
-"""
-infopd - 정보보호공시 관리 시스템
+﻿"""
+infosd - 정보보호공시 관리 시스템
 메인 Flask 애플리케이션
 """
 import json
@@ -14,7 +14,7 @@ from company_routes import bp_company
 from disclosure_routes import bp_disclosure
 
 app = Flask(__name__)
-app.secret_key = os.getenv('INFOPD_SECRET_KEY', 'infopd-dev-secret-key-change-in-production')
+app.secret_key = os.getenv('infosd_SECRET_KEY', 'infosd-dev-secret-key-change-in-production')
 
 app.config.update(
     TEMPLATES_AUTO_RELOAD=True,
@@ -37,6 +37,20 @@ def from_json_or_default(value, default=None):
         return default
 
 
+@app.template_filter('comma')
+def comma_filter(value):
+    """숫자에 쉼표(,) 추가 (천 단위)"""
+    if value == '' or value is None:
+        return ''
+    try:
+        clean_value = str(value).replace(',', '')
+        if '.' in clean_value:
+            return "{:,.2f}".format(float(clean_value)).rstrip('0').rstrip('.')
+        return "{:,}".format(int(clean_value))
+    except (ValueError, TypeError):
+        return value
+
+
 # Blueprint 등록
 app.register_blueprint(bp_company)
 app.register_blueprint(bp_disclosure)
@@ -45,7 +59,7 @@ app.register_blueprint(bp_disclosure)
 @app.route('/health')
 def health():
     """서버 상태 확인"""
-    return jsonify({'status': 'ok', 'service': 'infopd'})
+    return jsonify({'status': 'ok', 'service': 'infosd'})
 
 
 @app.errorhandler(404)
@@ -59,7 +73,7 @@ def server_error(e):
 
 
 if __name__ == '__main__':
-    port = int(os.getenv('INFOPD_PORT', 5001))
+    port = int(os.getenv('infosd_PORT', 5001))
     debug = os.getenv('FLASK_ENV', 'development') == 'development'
-    print(f"\n infopd 서버 시작 — http://localhost:{port}")
+    print(f"\n infosd 서버 시작 — http://localhost:{port}")
     app.run(host='0.0.0.0', port=port, debug=debug)

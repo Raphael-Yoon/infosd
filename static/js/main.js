@@ -1,1 +1,1 @@
-// infopd main.js
+﻿// infosd main.js

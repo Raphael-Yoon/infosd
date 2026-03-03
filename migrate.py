@@ -1,6 +1,6 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 """
-infopd 데이터베이스 마이그레이션 스크립트
+infosd 데이터베이스 마이그레이션 스크립트
 
 사용법:
     python migrate.py status              # 현재 마이그레이션 상태 확인
@@ -20,10 +20,10 @@ from migrations.migration_manager import MigrationManager
 
 
 def main():
-    parser = argparse.ArgumentParser(description='infopd 데이터베이스 마이그레이션 도구')
+    parser = argparse.ArgumentParser(description='infosd 데이터베이스 마이그레이션 도구')
     parser.add_argument('command', choices=['status', 'upgrade', 'downgrade'])
     parser.add_argument('--target', type=str, help='타겟 마이그레이션 버전')
-    parser.add_argument('--database', type=str, default=str(_APP_DIR / 'infopd.db'))
+    parser.add_argument('--database', type=str, default=str(_APP_DIR / 'infosd.db'))
     args = parser.parse_args()
 
     manager = MigrationManager(args.database)

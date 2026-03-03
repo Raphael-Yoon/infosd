@@ -1,5 +1,5 @@
-/* 
- * InfoPD — Official Snowball Disclosure Design System (v0.07.1)
+﻿/* 
+ * infosd — Official Snowball Disclosure Design System (v0.07.1)
  * Author: 개발1팀 조윤진 (Snowball UI/UX Architect)
  * Target: 100% Visual Parity with Snowball link11 System
  */
@@ -26,7 +26,7 @@ body {
     font-family: 'Pretendard', sans-serif;
     line-height: 1.6;
     margin: 0;
-    padding-top: var(--header-height);
+    padding-top: 0;
 }
 
 /* Navbar */
@@ -46,7 +46,7 @@ body {
 /* Dashboard Layout */
 .container-disclosure {
     max-width: 1200px;
-    margin: 40px auto;
+    margin: 0 auto;
     padding: 0 20px;
 }
 

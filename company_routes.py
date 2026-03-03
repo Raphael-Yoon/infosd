@@ -1,5 +1,5 @@
-"""
-infopd - 회사/연도 관리 라우팅
+﻿"""
+infosd - 회사/연도 관리 라우팅
 """
 import uuid
 from datetime import datetime

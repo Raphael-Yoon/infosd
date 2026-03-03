@@ -1,5 +1,5 @@
-"""
-infopd - 공시 작업 라우팅 (4+5단계)
+﻿"""
+infosd - 공시 작업 라우팅 (4+5단계)
 """
 import uuid
 import json
@@ -791,7 +791,7 @@ def submit(company_id, year):
 
         # 이미 제출된 경우
         if session_row['status'] == 'submitted':
-            flash('이미 제출된 공시입니다.', 'info')
+            flash('성공적으로 제출되었습니다.', 'success')
             return redirect(url_for('disclosure.review', company_id=company_id, year=year))
 
         # 제출 처리
@@ -823,3 +823,77 @@ def submit(company_id, year):
 
     flash(f'공시 제출 완료. 확인번호: {confirmation}', 'success')
     return redirect(url_for('disclosure.review', company_id=company_id, year=year))
+
+
+# ============================================================
+# API — 전년도 참고 데이터 (Reference View)
+# ============================================================
+
+@bp_disclosure.route('/api/years/<company_id>')
+def get_available_years(company_id):
+    """특정 회사의 데이터가 존재하는 연도 목록 조회"""
+    try:
+        with get_db() as conn:
+            # ipd_targets 또는 ipd_answers에서 연도 추출
+            rows = conn.execute('''
+                SELECT DISTINCT year FROM ipd_targets 
+                WHERE company_id = ? 
+                UNION 
+                SELECT DISTINCT year FROM ipd_answers 
+                WHERE company_id = ? AND deleted_at IS NULL
+                ORDER BY year DESC
+            ''', (company_id, company_id)).fetchall()
+            
+            years = [row['year'] for row in rows]
+            return jsonify({'success': True, 'years': years})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@bp_disclosure.route('/api/answers/<company_id>/<int:year>')
+def get_year_answers(company_id, year):
+    """특정 연도의 모든 질문 상세 정보와 답변 데이터 조회 (카테고리 필터 지원)"""
+    category_id = request.args.get('category_id', type=int)
+    
+    try:
+        with get_db() as conn:
+            # 질문 상세 정보와 답변을 JOIN하여 조회
+            query = '''
+                SELECT q.id as question_id, q.text as question_text, q.type as question_type,
+                       q.display_number, q.category_id, q.category, a.value
+                FROM ipd_questions q
+                LEFT JOIN ipd_answers a ON q.id = a.question_id 
+                    AND a.company_id = ? AND a.year = ? AND a.deleted_at IS NULL
+                WHERE q.type != 'group'
+            '''
+            params = [company_id, year]
+            
+            if category_id:
+                query += ' AND q.category_id = ? '
+                params.append(category_id)
+                
+            query += ' ORDER BY q.category_id, q.sort_order '
+            
+            cursor = conn.execute(query, params)
+            
+            data = []
+            for row in cursor.fetchall():
+                item = dict(row)
+                # JSON 필드 파싱 시도 (단순 값은 그대로 유지)
+                if item.get('value'):
+                    try:
+                        item['value'] = json.loads(item['value'])
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+                data.append(item)
+                
+            return jsonify({
+                'success': True,
+                'company_id': company_id,
+                'year': year,
+                'answers': data
+            })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500

@@ -1,5 +1,5 @@
-"""
-infopd 데이터베이스 마이그레이션 관리 클래스
+﻿"""
+infosd 데이터베이스 마이그레이션 관리 클래스
 """
 import sqlite3
 import importlib.util
@@ -10,7 +10,7 @@ from pathlib import Path
 class MigrationManager:
     """데이터베이스 마이그레이션을 관리하는 클래스"""
 
-    def __init__(self, database_path='infopd.db'):
+    def __init__(self, database_path='infosd.db'):
         self.database_path = database_path
         self.migrations_dir = Path(__file__).parent / 'versions'
         self._ensure_migration_table()
@@ -86,7 +86,7 @@ class MigrationManager:
         applied = set(self._get_applied_migrations())
         available = self._get_available_migrations()
         print("=" * 70)
-        print("infopd 데이터베이스 마이그레이션 상태")
+        print("infosd 데이터베이스 마이그레이션 상태")
         print("=" * 70)
         print(f"데이터베이스: {self.database_path}")
         print("-" * 70)
