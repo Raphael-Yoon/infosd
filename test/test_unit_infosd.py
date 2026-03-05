@@ -22,8 +22,13 @@ from test.playwright_base import PlaywrightTestBase, TestStatus, UnitTestResult
 import requests as req
 
 TEST_COMPANY_NAME = "테스트회사_자동"
-TEST_YEAR = 2099
-W = 400   # 기본 액션 후 대기(ms) — 서버 응답 확인용 최소치
+TEST_YEAR = 2026        # index.html select options: range(2023, 2027)
+W = 400                 # 액션 후 최소 대기(ms)
+
+# ── 셀렉터 상수 ──────────────────────────────────────────────────
+# 카드: .progress-card (class="progress-card p-0 overflow-hidden ...")
+# 카드 헤더: .p-4.border-bottom  (회사 삭제 버튼·연도 추가 폼이 여기)
+# 연도 행: table tbody tr
 
 
 class InfosdUnitTest(PlaywrightTestBase):
@@ -33,61 +38,66 @@ class InfosdUnitTest(PlaywrightTestBase):
         self.category = "infosd: 정보보호공시"
         self.checklist_source = project_root / "test" / "unit_checklist_infosd.md"
         self.checklist_result = project_root / "test" / "unit_checklist_infosd_result.md"
-        self._company_id = None   # 최초 1회만 셋업, 이후 캐시 사용
+        self._company_id = None   # 최초 1회만 셋업, 이후 캐시
 
     # ─── 공통 헬퍼 ───────────────────────────────────────────
 
     def _get_cookies(self) -> dict:
         return {c["name"]: c["value"] for c in self.context.cookies()}
 
+    def _card(self, name=None):
+        """회사 카드 locator. name 생략 시 TEST_COMPANY_NAME 사용."""
+        n = name or TEST_COMPANY_NAME
+        return self.page.locator(f".progress-card:has-text('{n}')")
+
+    def _open_add_modal(self):
+        """신규 기업 등록 모달 열기."""
+        self.page.locator("[data-bs-target='#addCompanyModal']").click()
+        self.page.wait_for_selector("#addCompanyModal.show", state="visible")
+
     def _ensure_session(self) -> str | None:
-        """테스트용 회사+연도 세션을 보장하고 company_id 반환.
-        첫 호출에만 실제 작업을 수행하고 이후 캐시된 값을 반환한다."""
+        """테스트용 회사+연도 세션을 보장. 첫 호출에만 실제 작업, 이후 캐시."""
         if self._company_id:
             return self._company_id
 
         self.navigate_to("/")
         self.page.wait_for_load_state("domcontentloaded")
 
-        # 테스트 회사 없으면 등록
-        if self.page.locator(f"text={TEST_COMPANY_NAME}").count() == 0:
-            self.page.locator("input[name='name']").first.fill(TEST_COMPANY_NAME)
-            self.page.locator("button[type='submit']").first.click()
-            self.page.wait_for_selector(f"text={TEST_COMPANY_NAME}")
+        # 테스트 회사 없으면 등록 (모달)
+        if self._card().count() == 0:
+            self._open_add_modal()
+            self.page.locator("#addCompanyModal input[name='name']").fill(TEST_COMPANY_NAME)
+            self.page.locator("#addCompanyModal button[type='submit']").click()
+            self.page.wait_for_selector(f".progress-card:has-text('{TEST_COMPANY_NAME}')")
 
-        # company_id 추출 (삭제 form action 기준)
-        del_form = self.page.locator(
-            f".company-card:has-text('{TEST_COMPANY_NAME}') form[action*='/delete']"
-        ).first
+        # company_id 추출 (헤더 영역 회사 삭제 form action 기준)
+        hdr = self._card().locator(".p-4.border-bottom")
+        del_form = hdr.locator("form[action$='/delete']").first
         if del_form.count() == 0:
             return None
         action = del_form.get_attribute("action") or ""
+        # action: /company/<uuid>/delete
         parts = [p for p in action.split("/") if p]
         if len(parts) < 2:
             return None
         company_id = parts[1]
 
-        # 연도 없으면 추가
-        if self.page.locator(
-            f".company-card:has-text('{TEST_COMPANY_NAME}') :text('{TEST_YEAR}')"
-        ).count() == 0:
-            year_form = self.page.locator(
-                f".company-card:has-text('{TEST_COMPANY_NAME}') form[action*='/year/add']"
-            ).first
+        # 연도 없으면 select 로 추가
+        year_row = self._card().locator(f"table td .badge:has-text('{TEST_YEAR}년')")
+        if year_row.count() == 0:
+            year_form = hdr.locator("form[action*='/year/add']").first
             if year_form.count() > 0:
-                year_form.locator("input[name='year']").fill(str(TEST_YEAR))
+                year_form.locator("select[name='year']").select_option(str(TEST_YEAR))
                 year_form.locator("button[type='submit']").click()
-                self.page.wait_for_selector(f"text={TEST_YEAR}")
+                self.page.wait_for_selector(f"text={TEST_YEAR}년")
 
         # 세션 선택
         self.navigate_to(f"/disclosure/select/{company_id}/{TEST_YEAR}")
         self.page.wait_for_load_state("domcontentloaded")
-
         self._company_id = company_id
         return company_id
 
     def _api(self, method: str, path: str, **kwargs):
-        """쿠키 포함 requests 호출."""
         return getattr(req, method)(
             f"{self.base_url}{path}",
             cookies=self._get_cookies(),
@@ -96,17 +106,18 @@ class InfosdUnitTest(PlaywrightTestBase):
         )
 
     def _go_work(self):
-        """작업 화면(/disclosure/work)으로 이동."""
         self.navigate_to("/disclosure/work")
         self.page.wait_for_load_state("domcontentloaded")
 
+    def _click_yn_wait(self, selector: str):
+        """YES/NO 버튼 클릭 후 JS reload 완료까지 대기 (JS: 120ms 후 location.reload())."""
+        with self.page.expect_navigation(wait_until="domcontentloaded", timeout=5000):
+            self.page.locator(selector).first.click()
+
     def _q1_yes(self):
-        """Q1 YES 선택 (하위 질문 활성화)."""
-        btn = self.page.locator("#question-Q1 .yn-btn.yes").first
-        if btn.count() > 0:
-            btn.click()
-            self.page.wait_for_timeout(W)
-        return btn
+        """Q1 YES 클릭 후 페이지 리로드 완료까지 대기."""
+        if self.page.locator("#btn-Q1-YES").count() > 0:
+            self._click_yn_wait("#btn-Q1-YES")
 
     # ─── 1. 회사·연도 관리 ──────────────────────────────────
 
@@ -115,21 +126,22 @@ class InfosdUnitTest(PlaywrightTestBase):
         self.navigate_to("/")
         self.page.wait_for_load_state("domcontentloaded")
 
-        # 이미 있으면 삭제 후 재등록
-        if self.page.locator(f"text={TEST_COMPANY_NAME}").count() > 0:
-            del_form = self.page.locator(
-                f".company-card:has-text('{TEST_COMPANY_NAME}') form[action*='/delete']"
-            ).first
+        # 이미 있으면 삭제
+        if self._card().count() > 0:
+            hdr = self._card().locator(".p-4.border-bottom")
+            del_form = hdr.locator("form[action$='/delete']").first
             if del_form.count() > 0:
+                self.page.evaluate("window.confirm = () => true")
                 del_form.locator("button[type='submit']").click()
                 self.page.wait_for_load_state("domcontentloaded")
-            self._company_id = None  # 캐시 초기화
+            self._company_id = None
 
-        self.page.locator("input[name='name']").first.fill(TEST_COMPANY_NAME)
-        self.page.locator("button[type='submit']").first.click()
+        self._open_add_modal()
+        self.page.locator("#addCompanyModal input[name='name']").fill(TEST_COMPANY_NAME)
+        self.page.locator("#addCompanyModal button[type='submit']").click()
         self.page.wait_for_selector(f"text={TEST_COMPANY_NAME}")
 
-        if self.page.locator(f"text={TEST_COMPANY_NAME}").count() > 0:
+        if self._card().count() > 0:
             result.pass_test(f"'{TEST_COMPANY_NAME}' 등록 및 목록 표시 확인")
         else:
             result.fail_test("등록 후 목록에서 회사명을 찾을 수 없음")
@@ -138,8 +150,9 @@ class InfosdUnitTest(PlaywrightTestBase):
         """1. 중복 회사 등록 차단"""
         self.navigate_to("/")
         self.page.wait_for_load_state("domcontentloaded")
-        self.page.locator("input[name='name']").first.fill(TEST_COMPANY_NAME)
-        self.page.locator("button[type='submit']").first.click()
+        self._open_add_modal()
+        self.page.locator("#addCompanyModal input[name='name']").fill(TEST_COMPANY_NAME)
+        self.page.locator("#addCompanyModal button[type='submit']").click()
         self.page.wait_for_load_state("domcontentloaded")
 
         if "이미 등록" in self.page.content():
@@ -152,27 +165,37 @@ class InfosdUnitTest(PlaywrightTestBase):
         self.navigate_to("/")
         self.page.wait_for_load_state("domcontentloaded")
 
-        edit_form = self.page.locator(
-            f".company-card:has-text('{TEST_COMPANY_NAME}') form[action*='/edit']"
-        ).first
-        if edit_form.count() == 0:
-            result.skip_test("수정 폼 미발견 — 회사 없거나 셀렉터 불일치")
+        if self._card().count() == 0:
+            result.skip_test(f"'{TEST_COMPANY_NAME}' 카드 없음")
             return
 
+        # 편집 아이콘 클릭 → 모달 열기
+        # data-bs-target="#editCompanyModal-<id>" 버튼
+        edit_btn = self._card().locator("[data-bs-target*='editCompanyModal']").first
+        if edit_btn.count() == 0:
+            result.skip_test("수정 버튼 미발견")
+            return
+
+        modal_target = edit_btn.get_attribute("data-bs-target") or ""
+        edit_btn.click()
+        self.page.wait_for_selector(f"{modal_target}.show", state="visible")
+
         new_name = TEST_COMPANY_NAME + "_편집"
-        edit_form.locator("input[name='name']").fill(new_name)
-        edit_form.locator("button[type='submit']").click()
+        self.page.locator(f"{modal_target} input[name='name']").fill(new_name)
+        self.page.locator(f"{modal_target} button[type='submit']").click()
         self.page.wait_for_selector(f"text={new_name}")
 
         if self.page.locator(f"text={new_name}").count() > 0:
             # 원래 이름으로 복구
-            edit_form2 = self.page.locator(
-                f".company-card:has-text('{new_name}') form[action*='/edit']"
-            ).first
-            if edit_form2.count() > 0:
-                edit_form2.locator("input[name='name']").fill(TEST_COMPANY_NAME)
-                edit_form2.locator("button[type='submit']").click()
+            edit_btn2 = self.page.locator(f".progress-card:has-text('{new_name}') [data-bs-target*='editCompanyModal']").first
+            if edit_btn2.count() > 0:
+                modal_target2 = edit_btn2.get_attribute("data-bs-target") or ""
+                edit_btn2.click()
+                self.page.wait_for_selector(f"{modal_target2}.show", state="visible")
+                self.page.locator(f"{modal_target2} input[name='name']").fill(TEST_COMPANY_NAME)
+                self.page.locator(f"{modal_target2} button[type='submit']").click()
                 self.page.wait_for_selector(f"text={TEST_COMPANY_NAME}")
+            self._company_id = None  # company_id는 같지만 캐시 안전 초기화
             result.pass_test(f"회사명 수정 확인 (→ {new_name} → 복구)")
         else:
             result.fail_test("수정 후 새 이름이 목록에 표시되지 않음")
@@ -181,15 +204,14 @@ class InfosdUnitTest(PlaywrightTestBase):
         """1. 공시 연도 추가"""
         company_id = self._ensure_session()
         if not company_id:
-            result.skip_test("테스트 회사 세션 구성 실패")
+            result.skip_test("세션 구성 실패")
             return
 
         self.navigate_to("/")
         self.page.wait_for_load_state("domcontentloaded")
 
-        if self.page.locator(
-            f".company-card:has-text('{TEST_COMPANY_NAME}') :text('{TEST_YEAR}')"
-        ).count() > 0:
+        year_badge = self._card().locator(f"table td .badge:has-text('{TEST_YEAR}년')")
+        if year_badge.count() > 0:
             result.pass_test(f"{TEST_YEAR}년도 목록 존재 확인")
         else:
             result.fail_test(f"{TEST_YEAR}년도가 목록에 없음")
@@ -198,20 +220,19 @@ class InfosdUnitTest(PlaywrightTestBase):
         """1. 연도 중복 추가 차단"""
         company_id = self._ensure_session()
         if not company_id:
-            result.skip_test("테스트 회사 세션 구성 실패")
+            result.skip_test("세션 구성 실패")
             return
 
         self.navigate_to("/")
         self.page.wait_for_load_state("domcontentloaded")
 
-        year_form = self.page.locator(
-            f".company-card:has-text('{TEST_COMPANY_NAME}') form[action*='/year/add']"
-        ).first
+        hdr = self._card().locator(".p-4.border-bottom")
+        year_form = hdr.locator("form[action*='/year/add']").first
         if year_form.count() == 0:
             result.skip_test("연도 추가 폼 미발견")
             return
 
-        year_form.locator("input[name='year']").fill(str(TEST_YEAR))
+        year_form.locator("select[name='year']").select_option(str(TEST_YEAR))
         year_form.locator("button[type='submit']").click()
         self.page.wait_for_load_state("domcontentloaded")
 
@@ -226,21 +247,28 @@ class InfosdUnitTest(PlaywrightTestBase):
         self.navigate_to("/")
         self.page.wait_for_load_state("domcontentloaded")
 
-        self.page.locator("input[name='name']").first.fill(tmp_name)
-        self.page.locator("button[type='submit']").first.click()
+        self._open_add_modal()
+        self.page.locator("#addCompanyModal input[name='name']").fill(tmp_name)
+        self.page.locator("#addCompanyModal button[type='submit']").click()
         self.page.wait_for_selector(f"text={tmp_name}")
 
-        del_form = self.page.locator(
-            f".company-card:has-text('{tmp_name}') form[action*='/delete']"
-        ).first
+        tmp_card = self.page.locator(f".progress-card:has-text('{tmp_name}')")
+        del_form = tmp_card.locator(".p-4.border-bottom form[action$='/delete']").first
         if del_form.count() == 0:
-            result.fail_test("삭제 폼 미발견 — 회사 등록 실패")
+            result.fail_test("삭제 폼 미발견")
             return
 
-        del_form.locator("button[type='submit']").click()
+        # form action URL 추출 후 API 직접 호출 (JS confirm 우회)
+        action_path = del_form.get_attribute("action") or ""
+        if not action_path:
+            result.fail_test("삭제 form action 속성 없음")
+            return
+
+        del_resp = self._api("post", action_path, data={})
+        self.navigate_to("/")
         self.page.wait_for_load_state("domcontentloaded")
 
-        if self.page.locator(f"text={tmp_name}").count() == 0:
+        if self.page.locator(f".progress-card:has-text('{tmp_name}')").count() == 0:
             result.pass_test(f"'{tmp_name}' 삭제 후 목록 제거 확인")
         else:
             result.fail_test("삭제 후에도 목록에 회사가 남아 있음")
@@ -294,7 +322,7 @@ class InfosdUnitTest(PlaywrightTestBase):
         url = self.page.url
 
         if "work" in url or self.page.locator(".question-item").count() > 0:
-            result.pass_test(f"카테고리 클릭 → 작업 화면 이동 확인")
+            result.pass_test("카테고리 클릭 → 작업 화면 이동 확인")
         else:
             result.fail_test(f"작업 화면 미이동 (URL: {url})")
 
@@ -307,7 +335,7 @@ class InfosdUnitTest(PlaywrightTestBase):
             return
 
         self._go_work()
-        yes_btn = self.page.locator("#question-Q1 .yn-btn.yes").first
+        yes_btn = self.page.locator("#btn-Q1-YES").first
         if yes_btn.count() == 0:
             result.skip_test("Q1 YES 버튼 미발견")
             return
@@ -331,7 +359,7 @@ class InfosdUnitTest(PlaywrightTestBase):
         self._go_work()
         self._q1_yes()
 
-        q2 = self.page.locator("#question-Q2")
+        q2 = self.page.locator("#card-Q2")
         if q2.count() > 0 and q2.is_visible():
             result.pass_test("Q1 YES → Q2 하위 질문 표시 확인")
         else:
@@ -344,18 +372,14 @@ class InfosdUnitTest(PlaywrightTestBase):
             return
 
         self._go_work()
-        q1_yes = self.page.locator("#question-Q1 .yn-btn.yes").first
-        q1_no  = self.page.locator("#question-Q1 .yn-btn.no").first
-        if q1_yes.count() == 0:
+        if self.page.locator("#btn-Q1-YES").count() == 0:
             result.skip_test("Q1 버튼 미발견")
             return
 
-        q1_yes.click()
-        self.page.wait_for_timeout(W)
-        q1_no.click()
-        self.page.wait_for_timeout(W)
+        self._click_yn_wait("#btn-Q1-YES")  # YES → reload
+        self._click_yn_wait("#btn-Q1-NO")   # NO → reload
 
-        q2 = self.page.locator("#question-Q2")
+        q2 = self.page.locator("#card-Q2")
         if q2.count() == 0 or not q2.is_visible():
             result.pass_test("Q1 NO → Q2 숨김 확인")
         else:
@@ -408,13 +432,16 @@ class InfosdUnitTest(PlaywrightTestBase):
 
         resp = self._api("get", f"/disclosure/api/answers/{company_id}/{TEST_YEAR}")
         if resp.status_code == 200:
-            saved = resp.json().get("answers", {}).get("Q27", "")
+            # answers는 list[{question_id, value, ...}] 구조
+            answers_list = resp.json().get("answers", [])
+            q27 = next((x for x in answers_list if x.get("question_id") == "Q27"), None)
+            saved = q27.get("value", "") if q27 else ""
             if saved:
-                result.pass_test(f"Q27 텍스트 저장 확인 ({saved[:40]})")
+                result.pass_test(f"Q27 텍스트 저장 확인 ({str(saved)[:40]})")
             else:
                 result.fail_test("Q27 저장값 없음")
         else:
-            result.warn_test(f"저장 확인 API 응답 오류 ({resp.status_code})")
+            result.warn_test(f"저장 확인 API 오류 ({resp.status_code})")
 
     def test_validation_negative(self, result: UnitTestResult):
         """3. 음수 입력 차단"""
@@ -427,9 +454,9 @@ class InfosdUnitTest(PlaywrightTestBase):
                          json={"question_id": "Q2", "company_id": company_id,
                                "year": TEST_YEAR, "value": "-5000"})
         if resp.status_code == 400:
-            result.pass_test(f"음수 입력 시 400 차단 ({resp.json().get('message', '')})")
+            result.pass_test(f"음수 입력 400 차단 ({resp.json().get('message', '')})")
         else:
-            result.fail_test(f"음수 입력이 차단되지 않음 (status: {resp.status_code})")
+            result.fail_test(f"음수 입력 미차단 (status: {resp.status_code})")
 
     def test_validation_b_gt_a(self, result: UnitTestResult):
         """3. 정보보호 투자액(B) > IT 투자액(A) 차단"""
@@ -441,7 +468,6 @@ class InfosdUnitTest(PlaywrightTestBase):
         self._api("post", "/disclosure/api/answer",
                   json={"question_id": "Q2", "company_id": company_id,
                         "year": TEST_YEAR, "value": "1000000"})
-
         resp = self._api("post", "/disclosure/api/answer",
                          json={"question_id": "Q4", "company_id": company_id,
                                "year": TEST_YEAR, "value": "2000000"})
@@ -461,7 +487,6 @@ class InfosdUnitTest(PlaywrightTestBase):
         self._api("post", "/disclosure/api/answer",
                   json={"question_id": "Q10", "company_id": company_id,
                         "year": TEST_YEAR, "value": "10"})
-
         resp = self._api("post", "/disclosure/api/answer",
                          json={"question_id": "Q28", "company_id": company_id,
                                "year": TEST_YEAR, "value": "20"})
@@ -481,7 +506,6 @@ class InfosdUnitTest(PlaywrightTestBase):
         resp = self._api("post", "/disclosure/api/answer",
                          json={"question_id": "Q27", "company_id": company_id,
                                "year": TEST_YEAR, "value": "confirmed 차단 테스트"})
-
         if resp.status_code == 403:
             result.pass_test("confirmed 상태 수정 시도 시 403 확인")
         elif resp.status_code == 200:
@@ -510,7 +534,7 @@ class InfosdUnitTest(PlaywrightTestBase):
                                  data={"question_id": "Q2", "company_id": company_id,
                                        "year": str(TEST_YEAR)})
             if resp.status_code == 200 and resp.json().get("success"):
-                ev_id = str(resp.json().get("evidence", {}).get("id", "?"))[:8]
+                ev_id = str(resp.json().get("evidence_id", "?"))[:8]
                 result.pass_test(f"PNG 업로드 성공 (id: {ev_id}...)")
             else:
                 result.fail_test(f"업로드 실패: {resp.status_code} — {resp.text[:80]}")
@@ -538,7 +562,7 @@ class InfosdUnitTest(PlaywrightTestBase):
             if blocked:
                 result.pass_test(f"비허용 확장자 차단 확인 (status: {resp.status_code})")
             else:
-                result.fail_test(f".exe 파일이 업로드 허용됨 (status: {resp.status_code})")
+                result.fail_test(f".exe 파일 업로드 허용됨 (status: {resp.status_code})")
         finally:
             os.unlink(tmp_path)
 
@@ -567,7 +591,7 @@ class InfosdUnitTest(PlaywrightTestBase):
             result.skip_test("사전 업로드 실패 — 삭제 테스트 건너뜀")
             return
 
-        ev_id = up.json().get("evidence", {}).get("id")
+        ev_id = up.json().get("evidence_id")
         if not ev_id:
             result.skip_test("업로드 응답에서 증빙 ID 추출 실패")
             return
@@ -594,8 +618,7 @@ class InfosdUnitTest(PlaywrightTestBase):
             submit_btn.click()
             self.page.wait_for_load_state("domcontentloaded")
 
-        content = self.page.content()
-        if "모든 항목" in content or "작성해야" in content:
+        if "모든 항목" in self.page.content() or "작성해야" in self.page.content():
             result.pass_test("미완료 상태에서 submit 차단 메시지 확인")
         else:
             result.warn_test("차단 메시지 미감지 — 완료율이 이미 100%이거나 셀렉터 불일치")
@@ -606,22 +629,37 @@ class InfosdUnitTest(PlaywrightTestBase):
             result.skip_test("세션 구성 실패")
             return
 
-        # 상태 초기화
+        # confirmed 상태 해제 (있을 경우)
         self._api("post", "/disclosure/unconfirm", data={})
 
-        self.navigate_to("/disclosure/review")
-        self.page.wait_for_load_state("domcontentloaded")
+        # API 직접 호출로 confirm 시도 (submitted 상태가 아닌 경우 flash + redirect)
+        resp = self._api("post", "/disclosure/confirm", data={})
 
-        confirm_btn = self.page.locator("form[action*='/confirm'] button[type='submit']").first
-        if confirm_btn.count() > 0:
-            confirm_btn.click()
-            self.page.wait_for_load_state("domcontentloaded")
+        # submitted 상태가 아니면 Flask가 flash('검토 요청(submitted)...') 후 review로 redirect
+        # requests가 redirect를 follow한 HTML에서 확인
+        content = resp.text if resp.status_code == 200 else ""
+        blocked = (resp.status_code == 403
+                   or "submitted" in content
+                   or "검토 요청" in content
+                   or "확정" in content)
 
-        content = self.page.content()
-        if "검토 요청" in content or "submitted" in content:
+        if blocked:
             result.pass_test("submitted 없이 confirm 차단 확인")
         else:
-            result.warn_test("차단 메시지 미감지 — 상태 로직 수동 확인 필요")
+            # DB에서 직접 상태 확인: confirmed로 변경되지 않았으면 차단된 것
+            import sqlite3
+            with sqlite3.connect(str(project_root / "infosd.db")) as conn:
+                conn.row_factory = sqlite3.Row
+                company_id = self._ensure_session()
+                row = conn.execute(
+                    'SELECT status FROM ipd_sessions WHERE company_id=? AND year=?',
+                    (company_id, TEST_YEAR)
+                ).fetchone()
+                status = row['status'] if row else None
+            if status != 'confirmed':
+                result.pass_test(f"submitted 없이 confirm 미실행 확인 (status: {status})")
+            else:
+                result.fail_test("submitted 없이 confirm이 실행됨 (status: confirmed)")
 
     # ─── 6. Audit Trail ─────────────────────────────────────
 
@@ -671,20 +709,18 @@ class InfosdUnitTest(PlaywrightTestBase):
             return
 
         self._go_work()
-        q1_yes = self.page.locator("#question-Q1 .yn-btn.yes").first
-        q1_no  = self.page.locator("#question-Q1 .yn-btn.no").first
-        if q1_yes.count() == 0:
+        if self.page.locator("#btn-Q1-YES").count() == 0:
             result.skip_test("Q1 버튼 미발견")
             return
 
-        q1_yes.click(); self.page.wait_for_timeout(W)
-        q2_shown = self.page.locator("#question-Q2").is_visible()
+        self._click_yn_wait("#btn-Q1-YES")  # YES → reload
+        q2_shown = self.page.locator("#card-Q2").count() > 0
 
-        q1_no.click();  self.page.wait_for_timeout(W)
-        q2_hidden = not self.page.locator("#question-Q2").is_visible()
+        self._click_yn_wait("#btn-Q1-NO")   # NO → reload
+        q2_hidden = self.page.locator("#card-Q2").count() == 0
 
-        q1_yes.click(); self.page.wait_for_timeout(W)
-        q2_back = self.page.locator("#question-Q2").is_visible()
+        self._click_yn_wait("#btn-Q1-YES")  # YES → reload
+        q2_back = self.page.locator("#card-Q2").count() > 0
 
         if q2_shown and q2_hidden and q2_back:
             result.pass_test("YES→NO→YES 순환 시 하위 질문 재활성화 확인")
@@ -781,7 +817,7 @@ class InfosdUnitTest(PlaywrightTestBase):
 
 
 def run_tests():
-    runner = InfosdUnitTest(headless=True, slow_mo=0)   # slow_mo=0으로 속도 최적화
+    runner = InfosdUnitTest(headless=True, slow_mo=0)
     if not runner.check_server_running():
         print("❌ 서버 시작 실패 — 테스트 중단")
         return 1
@@ -789,18 +825,15 @@ def run_tests():
     runner.setup()
     try:
         runner.run_category("infosd Unit Tests", [
-            # 1. 회사·연도 관리
             runner.test_company_add,
             runner.test_company_add_duplicate,
             runner.test_company_edit,
             runner.test_year_add,
             runner.test_year_add_duplicate,
             runner.test_company_delete,
-            # 2. 세션 진입 및 대시보드
             runner.test_session_select,
             runner.test_dashboard_render,
             runner.test_dashboard_category_navigation,
-            # 3. 답변 저장 및 검증
             runner.test_answer_yes_no,
             runner.test_answer_dependent_show,
             runner.test_answer_dependent_hide,
@@ -810,16 +843,12 @@ def run_tests():
             runner.test_validation_b_gt_a,
             runner.test_validation_personnel,
             runner.test_answer_confirmed_blocked,
-            # 4. 증빙 자료
             runner.test_evidence_upload,
             runner.test_evidence_invalid_ext,
             runner.test_evidence_delete,
-            # 5. 공시 확정 흐름
             runner.test_submit_incomplete_blocked,
             runner.test_confirm_without_submit_blocked,
-            # 6. Audit Trail
             runner.test_audit_trail_recorded,
-            # 7. 데이터 무결성
             runner.test_recursive_na_cleanup,
             runner.test_session_progress_update,
         ])

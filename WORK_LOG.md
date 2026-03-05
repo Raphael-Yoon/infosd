@@ -2,6 +2,38 @@
 
 ---
 
+## 2026-03-05
+
+### 변경 내역
+- [DB] Migration 009: IT 감사팀 QA 점검 결과 반영 — 질문 완전성 보완 8건
+  - Q13 문구: '지정 현황' → '지정 여부'
+  - Q14 CISO/CPO 테이블: 임명일(appointed_date) 컬럼 추가
+  - Q19 교육 실적 테이블: 실시일자(edu_date), 실시횟수(count) 컬럼 추가
+  - Q20: yes_no → checkbox (지침서/절차서 개별 확인)
+  - Q23 SBOM: number → select (4단계 현황 선택)
+  - Q24 C-TAS: help_text 상호배타 안내 추가
+  - Q27 주요투자 항목: textarea → table (항목명+금액+비고)
+  - Q29 CISO 활동 내역: textarea → table (활동유형+내역+횟수)
+- [DB] Migration 010: 작가팀 문구 검토 결과 반영 — 질문 표현 통일 5건
+  - Q7 어조 통일: '있으신가요?' → '있나요?'
+  - Q9 후행 공백 제거
+  - Q13 질문형 전환: '지정 여부' → '지정되어 있나요?'
+  - Q26 어법 오류 수정: '준비금 가입' → '배상 준비금을 적립하고 있나요?'
+  - Q26 help_text 용어 통일: '적립금' → '배상 준비금'
+- [설정] infosd.py: auth_routes 블루프린트 및 require_login 미들웨어 제거 (개발 편의)
+- [테스트] test_unit_infosd.py: 전체 26개 시나리오 자동화 테스트 구현
+- [테스트] unit_checklist_infosd_result.md: 테스트 결과 체크리스트 생성
+
+### 변경 파일
+- `migrations/versions/009_audit_qa_improvements.py`: IT 감사팀 QA 반영 마이그레이션 (신규)
+- `migrations/versions/010_writer_qa_wording_fix.py`: 작가팀 문구 수정 마이그레이션 (신규)
+- `infosd.py`: auth_routes 제거, 불필요 import 정리
+- `infosd.db`: 마이그레이션 009·010 적용
+- `test/test_unit_infosd.py`: 26개 유닛 테스트 시나리오 구현
+- `test/unit_checklist_infosd_result.md`: 테스트 결과 리포트 (신규)
+
+---
+
 ## 2026-03-04
 
 ### 변경 내역

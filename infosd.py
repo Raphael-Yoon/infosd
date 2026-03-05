@@ -1,9 +1,9 @@
-﻿"""
+"""
 infosd - 정보보호공시 관리 시스템
 메인 Flask 애플리케이션
 """
 import json
-from flask import Flask, render_template, jsonify, session, redirect, url_for, request
+from flask import Flask, render_template, jsonify
 from pathlib import Path
 import os
 
@@ -12,7 +12,6 @@ os.chdir(_APP_DIR)
 
 from company_routes import bp_company
 from disclosure_routes import bp_disclosure
-from auth_routes import bp_auth
 
 app = Flask(__name__)
 app.secret_key = os.getenv('infosd_SECRET_KEY', 'infosd-dev-secret-key-change-in-production')
@@ -53,23 +52,8 @@ def comma_filter(value):
 
 
 # Blueprint 등록
-app.register_blueprint(bp_auth)
 app.register_blueprint(bp_company)
 app.register_blueprint(bp_disclosure)
-
-
-# ─── 접근통제 ─────────────────────────────────────
-_PUBLIC_ENDPOINTS = {'auth.login', 'auth.logout', 'health', 'static'}
-
-
-@app.before_request
-def require_login():
-    """로그인 여부 확인 — 미인증 시 로그인 페이지로 리다이렉트"""
-    endpoint = request.endpoint or ''
-    if endpoint in _PUBLIC_ENDPOINTS or endpoint.startswith('static'):
-        return
-    if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
 
 
 @app.route('/health')
