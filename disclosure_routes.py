@@ -1,14 +1,13 @@
 ﻿"""
 infosd - 공시 작업 라우팅 (4+5단계)
 """
-import uuid
 import json
 import os
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from flask import (Blueprint, render_template, request, redirect,
                    url_for, flash, jsonify, send_from_directory, abort, session)
-from db_config import get_db
+from db_config import get_db, generate_uuid
 
 bp_disclosure = Blueprint('disclosure', __name__, url_prefix='/disclosure')
 
@@ -62,9 +61,6 @@ class QID:
     ACT_DRILL = "Q25"              # 모의훈련
     ACT_INSURANCE = "Q26"          # 배상책임보험
 
-
-def _generate_uuid():
-    return str(uuid.uuid4())
 
 
 def _allowed_file(filename):
@@ -193,7 +189,7 @@ def _update_session_progress(conn, company_id, year):
                 INSERT INTO ipd_sessions
                 (id, company_id, year, status, total_questions, answered_questions, completion_rate)
                 VALUES (?,?,?,?,?,?,?)
-            ''', (_generate_uuid(), company_id, year, status, total, answered, rate))
+            ''', (generate_uuid(), company_id, year, status, total, answered, rate))
         conn.commit()
     except Exception as e:
         print(f"진행률 업데이트 오류: {e}")
@@ -225,7 +221,7 @@ def _mark_dependents_na(conn, question_id, company_id, year):
             conn.execute('''
                 INSERT INTO ipd_answers (id, question_id, company_id, year, value, status)
                 VALUES (?,?,?,?,'N/A','skipped')
-            ''', (_generate_uuid(), dep_id, company_id, year))
+            ''', (generate_uuid(), dep_id, company_id, year))
 
 
 def _clear_na_from_dependents(conn, question_id, company_id, year):
@@ -265,6 +261,56 @@ def _get_target_or_404(conn, company_id, year):
     return target
 
 
+def _build_evidence_map(conn, company_id, year):
+    """증빙 자료를 질문 ID 기준으로 그룹화하여 반환"""
+    rows = conn.execute(
+        'SELECT * FROM ipd_evidence WHERE company_id=? AND year=? ORDER BY uploaded_at DESC',
+        (company_id, year)
+    ).fetchall()
+    evidence_map = {}
+    for e in rows:
+        qid = e['question_id']
+        if qid not in evidence_map:
+            evidence_map[qid] = []
+        evidence_map[qid].append(dict(e))
+    return evidence_map
+
+
+def _parse_options(questions):
+    """questions 리스트의 options 필드를 JSON 파싱하여 options_list 주입"""
+    for q in questions:
+        if q.get('options'):
+            try:
+                q['options_list'] = json.loads(q['options'])
+            except (json.JSONDecodeError, TypeError):
+                q['options_list'] = []
+        else:
+            q['options_list'] = []
+
+
+def _calc_cat_progress(all_questions, questions_dict, answers):
+    """카테고리별 진행률 계산. [{'id', 'name', 'total', 'done', 'rate'}] 반환"""
+    cat_map = {}
+    for q in all_questions:
+        if q['type'] == 'group':
+            continue
+        cat_id = q['category_id']
+        if cat_id not in cat_map:
+            cat_map[cat_id] = {'id': cat_id, 'name': q['category'], 'total': 0, 'done': 0}
+        cat_map[cat_id]['total'] += 1
+        if _is_question_active(q, questions_dict, answers):
+            if q['id'] in answers and answers[q['id']] not in (None, ''):
+                cat_map[cat_id]['done'] += 1
+        elif _is_question_skipped(q, questions_dict, answers):
+            cat_map[cat_id]['done'] += 1
+    result = []
+    for cat_id in sorted(cat_map):
+        c = cat_map[cat_id]
+        c['rate'] = int((c['done'] / c['total']) * 100) if c['total'] > 0 else 0
+        result.append(c)
+    return result
+
+
 # ============================================================
 # 공시 대시보드 및 세션 관리
 # ============================================================
@@ -302,30 +348,9 @@ def dashboard():
             (company_id, year)
         ).fetchall()}
 
-        categories = {}
-        for q in all_questions:
-            cat_id = q['category_id']
-            cat_name = q['category']
-            if cat_id not in categories:
-                categories[cat_id] = {'id': cat_id, 'name': cat_name, 'total': 0, 'completed': 0}
-            if q['type'] == 'group':
-                continue
-            categories[cat_id]['total'] += 1
-            if _is_question_active(q, questions_dict, answers):
-                if q['id'] in answers and answers[q['id']] not in (None, ''):
-                    categories[cat_id]['completed'] += 1
-            elif _is_question_skipped(q, questions_dict, answers):
-                categories[cat_id]['completed'] += 1
-
-        cat_list = []
-        total_q, total_done = 0, 0
-        for cat_id in sorted(categories):
-            c = categories[cat_id]
-            c['rate'] = int((c['completed'] / c['total']) * 100) if c['total'] > 0 else 0
-            cat_list.append(c)
-            total_q += c['total']
-            total_done += c['completed']
-
+        cat_list = _calc_cat_progress(all_questions, questions_dict, answers)
+        total_q = sum(c['total'] for c in cat_list)
+        total_done = sum(c['done'] for c in cat_list)
         overall = int((total_done / total_q) * 100) if total_q > 0 else 0
 
         # 투자 및 인력 비율 계산
@@ -386,16 +411,7 @@ def work():
         answers = {r['question_id']: r['value'] for r in answers_rows}
         answer_ids = {r['question_id']: r['answer_id'] for r in answers_rows}
 
-        evidence_rows = conn.execute(
-            'SELECT * FROM ipd_evidence WHERE company_id=? AND year=? ORDER BY uploaded_at DESC',
-            (company_id, year)
-        ).fetchall()
-        evidence_map = {}
-        for e in evidence_rows:
-            qid = e['question_id']
-            if qid not in evidence_map:
-                evidence_map[qid] = []
-            evidence_map[qid].append(dict(e))
+        evidence_map = _build_evidence_map(conn, company_id, year)
 
         # options JSON 파싱 + 단위(unit) 주입
         PERSON_UNIT_IDS = {
@@ -404,42 +420,13 @@ def work():
             QID.PER_INTERNAL,         # Q11 내부 전담인력(D1)
             QID.PER_EXTERNAL,         # Q12 외주 전담인력(D2)
         }
+        _parse_options(questions)
         for q in questions:
-            if q.get('options'):
-                try:
-                    q['options_list'] = json.loads(q['options'])
-                except (json.JSONDecodeError, TypeError):
-                    q['options_list'] = []
-            else:
-                q['options_list'] = []
             q['is_active'] = _is_question_active(q, questions_dict, answers)
             q['is_skipped'] = _is_question_skipped(q, questions_dict, answers)
-            # number 타입 단위 설정: 인원 관련 필드는 '명', 나머지는 '원'
-            if q['type'] == 'number':
-                q['unit'] = '명' if q['id'] in PERSON_UNIT_IDS else '원'
-            else:
-                q['unit'] = ''
+            q['unit'] = ('명' if q['id'] in PERSON_UNIT_IDS else '원') if q['type'] == 'number' else ''
 
-        # 카테고리별 진행률 계산 (사이드바용) — _is_question_active 기반으로 정확히 계산
-        cat_map = {}
-        for q in all_questions:
-            if q['type'] == 'group':
-                continue
-            cat_id = q['category_id']
-            if cat_id not in cat_map:
-                cat_map[cat_id] = {'id': cat_id, 'name': q['category'], 'total': 0, 'done': 0}
-            cat_map[cat_id]['total'] += 1
-            if _is_question_active(q, questions_dict, answers):
-                if q['id'] in answers and answers[q['id']] not in (None, ''):
-                    cat_map[cat_id]['done'] += 1
-            elif _is_question_skipped(q, questions_dict, answers):
-                cat_map[cat_id]['done'] += 1
-
-        sidebar_categories = []
-        for cat_id in sorted(cat_map):
-            c = cat_map[cat_id]
-            c['rate'] = int((c['done'] / c['total']) * 100) if c['total'] > 0 else 0
-            sidebar_categories.append(c)
+        sidebar_categories = _calc_cat_progress(all_questions, questions_dict, answers)
 
         current_category_name = next((c['name'] for c in sidebar_categories if c['id'] == category_id), "Unknown")
         
@@ -571,7 +558,7 @@ def save_answer():
                 ''', (value, existing['id']))
                 answer_id = existing['id']
             else:
-                answer_id = _generate_uuid()
+                answer_id = generate_uuid()
                 conn.execute('''
                     INSERT INTO ipd_answers (id, question_id, company_id, year, value, status)
                     VALUES (?,?,?,?,?,'completed')
@@ -589,11 +576,6 @@ def save_answer():
             _update_session_progress(conn, company_id, year)
 
         return jsonify({'success': True, 'answer_id': answer_id})
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'message': str(e)}), 500
 
     except Exception as e:
         import traceback
@@ -630,7 +612,7 @@ def upload_evidence():
         save_dir = os.path.join(UPLOAD_FOLDER, company_id, str(year))
         os.makedirs(save_dir, exist_ok=True)
 
-        evidence_id = _generate_uuid()
+        evidence_id = generate_uuid()
         ext = file.filename.rsplit('.', 1)[1].lower()
         save_name = f"{evidence_id}.{ext}"
         save_path = os.path.join(save_dir, save_name)
@@ -721,25 +703,11 @@ def review():
             (company_id, year)
         ).fetchall()}
 
-        evidence_rows = conn.execute(
-            'SELECT * FROM ipd_evidence WHERE company_id=? AND year=?', (company_id, year)
-        ).fetchall()
-        evidence_map = {}
-        for e in evidence_rows:
-            qid = e['question_id']
-            if qid not in evidence_map:
-                evidence_map[qid] = []
-            evidence_map[qid].append(dict(e))
+        evidence_map = _build_evidence_map(conn, company_id, year)
 
-        # options 파싱
+        # options 파싱 + 활성화 상태 주입
+        _parse_options(all_questions)
         for q in all_questions:
-            if q.get('options'):
-                try:
-                    q['options_list'] = json.loads(q['options'])
-                except (json.JSONDecodeError, TypeError):
-                    q['options_list'] = []
-            else:
-                q['options_list'] = []
             q['is_active'] = _is_question_active(q, questions_dict, answers)
             q['is_skipped'] = _is_question_skipped(q, questions_dict, answers)
 
@@ -769,21 +737,11 @@ def review():
         # 투자 비율 계산
         ratios = _calculate_ratios(conn, company_id, year, answers)
 
-        # 답변이 없는 가상 세션 객체 보완
-        if not session_info:
-            session_info = {'completion_rate': 0, 'status': 'draft', 'id': None}
-            
         # 전체 진행률 계산
-        total_q = sum(1 for q in all_questions if q['type'] != 'group')
-        done_q = 0
-        for q in all_questions:
-            if q['type'] == 'group': continue
-            if _is_question_active(q, questions_dict, answers):
-                if q['id'] in answers and answers[q['id']] not in (None, '', 'N/A'):
-                    done_q += 1
-            elif _is_question_skipped(q, questions_dict, answers):
-                done_q += 1
-        overall = round((done_q / total_q) * 100) if total_q > 0 else 0
+        cat_progress = _calc_cat_progress(all_questions, questions_dict, answers)
+        total_q = sum(c['total'] for c in cat_progress)
+        total_done = sum(c['done'] for c in cat_progress)
+        overall = round((total_done / total_q) * 100) if total_q > 0 else 0
 
     return render_template('disclosure/review.html',
                            company=dict(company), year=year,
@@ -803,12 +761,12 @@ def _calculate_ratios(conn, company_id, year, answers=None):
     ratios = {'investment_ratio': 0.0, 'personnel_ratio': 0.0}
 
     # 투자 비율 (B/A * 100)
-    if _is_yes(answers.get('Q1', '')):
+    if _is_yes(answers.get(QID.INV_HAS_INVESTMENT, '')):
         try:
-            val_a = float(str(answers.get('Q2', 0) or 0).replace(',', ''))
-            b1 = float(str(answers.get('Q4', 0) or 0).replace(',', ''))
-            b2 = float(str(answers.get('Q5', 0) or 0).replace(',', ''))
-            b3 = float(str(answers.get('Q6', 0) or 0).replace(',', ''))
+            val_a = float(str(answers.get(QID.INV_IT_AMOUNT, 0) or 0).replace(',', ''))
+            b1 = float(str(answers.get(QID.INV_SEC_DEPRECIATION, 0) or 0).replace(',', ''))
+            b2 = float(str(answers.get(QID.INV_SEC_SERVICE, 0) or 0).replace(',', ''))
+            b3 = float(str(answers.get(QID.INV_SEC_LABOR, 0) or 0).replace(',', ''))
             val_b = b1 + b2 + b3
             if val_a > 0:
                 ratios['investment_ratio'] = round((val_b / val_a) * 100, 2)
@@ -816,11 +774,11 @@ def _calculate_ratios(conn, company_id, year, answers=None):
             pass
 
     # 인력 비율 (D/C * 100, D = 내부+외주, C = IT 전체)
-    if _is_yes(answers.get('Q9', '')):
+    if _is_yes(answers.get(QID.PER_HAS_TEAM, '')):
         try:
-            it_emp = float(str(answers.get('Q28', 0) or 0).replace(',', ''))
-            internal = float(str(answers.get('Q11', 0) or 0).replace(',', ''))
-            external = float(str(answers.get('Q12', 0) or 0).replace(',', ''))
+            it_emp = float(str(answers.get(QID.PER_IT_EMPLOYEES, 0) or 0).replace(',', ''))
+            internal = float(str(answers.get(QID.PER_INTERNAL, 0) or 0).replace(',', ''))
+            external = float(str(answers.get(QID.PER_EXTERNAL, 0) or 0).replace(',', ''))
             d_sum = internal + external
             if it_emp > 0:
                 ratios['personnel_ratio'] = round((d_sum / it_emp) * 100, 2)

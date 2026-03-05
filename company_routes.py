@@ -1,16 +1,12 @@
 ﻿"""
 infosd - 회사/연도 관리 라우팅
 """
-import uuid
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from db_config import get_db
+from db_config import get_db, generate_uuid
 
 bp_company = Blueprint('company', __name__)
 
-
-def _generate_uuid():
-    return str(uuid.uuid4())
 
 
 def _get_progress(conn, company_id, year):
@@ -91,7 +87,7 @@ def add_company():
             flash(f'"{name}" 은(는) 이미 등록된 회사입니다.', 'warning')
             return redirect(url_for('company.index'))
 
-        company_id = _generate_uuid()
+        company_id = generate_uuid()
         conn.execute(
             'INSERT INTO ipd_companies (id, name) VALUES (?, ?)',
             (company_id, name)
@@ -190,7 +186,7 @@ def add_year(company_id):
 
         conn.execute(
             'INSERT INTO ipd_targets (id, company_id, year) VALUES (?, ?, ?)',
-            (_generate_uuid(), company_id, year)
+            (generate_uuid(), company_id, year)
         )
         conn.commit()
 

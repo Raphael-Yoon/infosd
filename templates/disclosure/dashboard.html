@@ -120,7 +120,7 @@
                 <div class="category-title">{{ cat.name }}</div>
             </div>
             <div class="category-progress">
-                <div class="category-stats">{{ cat.completed }}/{{ cat.total }}</div>
+                <div class="category-stats">{{ cat.done }}/{{ cat.total }}</div>
                 <div
                     class="category-badge {% if cat.rate == 100 %}complete{% elif cat.rate > 0 %}in-progress{% else %}not-started{% endif %}">
                     {{ '완료' if cat.rate == 100 else ('진행' if cat.rate > 0 else '미착수') }}
