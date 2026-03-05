@@ -482,6 +482,14 @@ def save_answer():
             value = json.dumps(value, ensure_ascii=False)
 
         with get_db() as conn:
+            # 0-0. 확정 상태 수정 차단
+            session_row = conn.execute(
+                'SELECT status FROM ipd_sessions WHERE company_id=? AND year=?',
+                (company_id, year)
+            ).fetchone()
+            if session_row and session_row['status'] == 'confirmed':
+                return jsonify({'success': False, 'message': '확정된 공시는 수정할 수 없습니다.'}), 403
+
             # 0. 숫자 필드 음수 방지 및 콤마 제거
             numeric_fields = [
                 QID.INV_IT_AMOUNT, QID.INV_SEC_GROUP, QID.INV_SEC_DEPRECIATION,
@@ -547,10 +555,12 @@ def save_answer():
 
             # 3. 답변 저장 (UPSERT)
             existing = conn.execute(
-                'SELECT id FROM ipd_answers WHERE question_id=? AND company_id=? AND year=?',
+                'SELECT id, value FROM ipd_answers WHERE question_id=? AND company_id=? AND year=?',
                 (question_id, company_id, year)
             ).fetchone()
-            
+
+            old_value = existing['value'] if existing else None
+
             if existing:
                 conn.execute('''
                     UPDATE ipd_answers SET value=?, status='completed',
@@ -563,6 +573,14 @@ def save_answer():
                     INSERT INTO ipd_answers (id, question_id, company_id, year, value, status)
                     VALUES (?,?,?,?,?,'completed')
                 ''', (answer_id, question_id, company_id, year, value))
+
+            # 3-1. Audit Trail: 답변 변경 이력 기록
+            conn.execute(
+                '''INSERT INTO ipd_answer_history
+                   (company_id, year, question_id, old_value, new_value)
+                   VALUES (?, ?, ?, ?, ?)''',
+                (company_id, year, question_id, old_value, value)
+            )
 
             # 4. YES/NO 연동 처리 (Dependent questions cleansing)
             q_info = conn.execute('SELECT type FROM ipd_questions WHERE id=?', (question_id,)).fetchone()
@@ -792,6 +810,43 @@ def _calculate_ratios(conn, company_id, year, answers=None):
 # 공시 확정 및 상태 관리
 # ============================================================
 
+@bp_disclosure.route('/submit', methods=['POST'])
+def submit_disclosure():
+    """공시 자료 검토 요청 (SoD: 작성자 → 검토자 단계 분리)"""
+    company_id = session.get('current_company_id')
+    year = session.get('current_year')
+
+    if not company_id or not year:
+        return redirect(url_for('company.index'))
+
+    with get_db() as conn:
+        session_row = conn.execute(
+            'SELECT completion_rate, status FROM ipd_sessions WHERE company_id=? AND year=?',
+            (company_id, year)
+        ).fetchone()
+
+        if not session_row or session_row['completion_rate'] < 100:
+            flash('모든 항목을 작성해야 검토 요청이 가능합니다.', 'warning')
+            return redirect(url_for('disclosure.review'))
+
+        if session_row['status'] in ('submitted', 'confirmed'):
+            flash('이미 검토 요청되었거나 확정된 공시입니다.', 'info')
+            return redirect(url_for('disclosure.review'))
+
+        conn.execute(
+            'UPDATE ipd_sessions SET status="submitted", updated_at=CURRENT_TIMESTAMP WHERE company_id=? AND year=?',
+            (company_id, year)
+        )
+        conn.execute(
+            'UPDATE ipd_targets SET status="submitted" WHERE company_id=? AND year=?',
+            (company_id, year)
+        )
+        conn.commit()
+
+    flash('검토 요청이 완료되었습니다. 담당자 확정 후 최종 확정하세요.', 'success')
+    return redirect(url_for('disclosure.review'))
+
+
 @bp_disclosure.route('/confirm', methods=['POST'])
 def confirm_disclosure():
     """공시 자료 확정 처리"""
@@ -803,13 +858,36 @@ def confirm_disclosure():
         
     with get_db() as conn:
         session_row = conn.execute(
-            'SELECT completion_rate FROM ipd_sessions WHERE company_id=? AND year=?', (company_id, year)
+            'SELECT completion_rate, status FROM ipd_sessions WHERE company_id=? AND year=?', (company_id, year)
         ).fetchone()
-        
-        if not session_row or session_row['completion_rate'] < 100:
+
+        if not session_row or session_row['status'] != 'submitted':
+            flash('검토 요청(submitted) 상태에서만 확정이 가능합니다.', 'warning')
+            return redirect(url_for('disclosure.review'))
+
+        if session_row['completion_rate'] < 100:
             flash('모든 항목을 작성해야 확정이 가능합니다.', 'warning')
             return redirect(url_for('disclosure.review'))
-            
+
+        # 필수 증빙 검증: 답변 완료 항목 중 증빙 미업로드 항목 차단
+        req_questions = conn.execute(
+            'SELECT id, display_number FROM ipd_questions WHERE evidence_list IS NOT NULL'
+        ).fetchall()
+        if req_questions:
+            answered_ids = {r['question_id'] for r in conn.execute(
+                "SELECT question_id FROM ipd_answers WHERE company_id=? AND year=? AND status='completed'",
+                (company_id, year)
+            ).fetchall()}
+            uploaded_ids = {r['question_id'] for r in conn.execute(
+                'SELECT DISTINCT question_id FROM ipd_evidence WHERE company_id=? AND year=?',
+                (company_id, year)
+            ).fetchall()}
+            missing_ev = [q['display_number'] for q in req_questions
+                          if q['id'] in answered_ids and q['id'] not in uploaded_ids]
+            if missing_ev:
+                flash(f'증빙 미업로드 항목이 있습니다: {", ".join(missing_ev)}', 'warning')
+                return redirect(url_for('disclosure.review'))
+
         conn.execute(
             'UPDATE ipd_sessions SET status="confirmed", updated_at=CURRENT_TIMESTAMP WHERE company_id=? AND year=?',
             (company_id, year)

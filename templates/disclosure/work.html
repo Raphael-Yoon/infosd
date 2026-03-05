@@ -568,7 +568,7 @@
                     <span class="num-unit">{{ q.unit }}</span>
                 </div>
                 {% elif q.type in ['text', 'textarea', 'long_text'] %}
-                <textarea id="input-{{ q.id }}" class="text-area-input" rows="4" placeholder="내용을 상세히 기재해 주세요." onchange="saveAnswer('{{ q.id }}', this.value)">{{ answers.get(q.id, '') }}</textarea>
+                <textarea id="input-{{ q.id }}" class="text-area-input" rows="4" placeholder="{{ q.help_text or '내용을 상세히 기재해 주세요.' }}" onchange="saveAnswer('{{ q.id }}', this.value)">{{ answers.get(q.id, '') }}</textarea>
                 {% elif q.type == 'select' and q.options_list %}
                 <div class="mt-3 d-flex flex-column gap-2">
                     {% for opt in q.options_list %}
