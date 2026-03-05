@@ -62,7 +62,7 @@
             </div>
         </div>
         <div style="text-align: center; color: var(--text-muted); font-size: 0.95rem; font-weight: 600;">
-            응답 완료: {{ categories|sum(attribute='completed') }} / {{ categories|sum(attribute='total') }} 질문
+            응답 완료: {{ categories|sum(attribute='done') }} / {{ categories|sum(attribute='total') }} 질문
         </div>
     </div>
 
