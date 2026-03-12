@@ -870,20 +870,36 @@ def confirm_disclosure():
             return redirect(url_for('disclosure.review'))
 
         # 필수 증빙 검증: 답변 완료 항목 중 증빙 미업로드 항목 차단
+        # (number 타입 항목은 금액이 0인 경우 증빙 불필요)
         req_questions = conn.execute(
-            'SELECT id, display_number FROM ipd_questions WHERE evidence_list IS NOT NULL'
+            'SELECT id, display_number, type FROM ipd_questions WHERE evidence_list IS NOT NULL'
         ).fetchall()
         if req_questions:
             answered_ids = {r['question_id'] for r in conn.execute(
                 "SELECT question_id FROM ipd_answers WHERE company_id=? AND year=? AND status='completed'",
                 (company_id, year)
             ).fetchall()}
+            all_answers = {r['question_id']: r['value'] for r in conn.execute(
+                'SELECT question_id, value FROM ipd_answers WHERE company_id=? AND year=? AND deleted_at IS NULL',
+                (company_id, year)
+            ).fetchall()}
             uploaded_ids = {r['question_id'] for r in conn.execute(
                 'SELECT DISTINCT question_id FROM ipd_evidence WHERE company_id=? AND year=?',
                 (company_id, year)
             ).fetchall()}
-            missing_ev = [q['display_number'] for q in req_questions
-                          if q['id'] in answered_ids and q['id'] not in uploaded_ids]
+            missing_ev = []
+            for q in req_questions:
+                if q['id'] not in answered_ids:
+                    continue
+                if q['type'] == 'number':
+                    try:
+                        val = float(str(all_answers.get(q['id'], '0') or '0').replace(',', ''))
+                        if val == 0:
+                            continue
+                    except ValueError:
+                        pass
+                if q['id'] not in uploaded_ids:
+                    missing_ev.append(q['display_number'])
             if missing_ev:
                 flash(f'증빙 미업로드 항목이 있습니다: {", ".join(missing_ev)}', 'warning')
                 return redirect(url_for('disclosure.review'))

@@ -46,3 +46,25 @@
 
 - [ ] **test_recursive_na_cleanup**: 상위 NO 변경 시 하위 데이터 N/A 처리 후 YES 복귀 시 재활성화 확인
 - [ ] **test_session_progress_update**: 답변 저장 후 세션 완료율(completion_rate) 갱신 확인
+
+## 8. table 타입 답변 저장
+
+- [ ] **test_answer_table_type_json**: Q27(주요 투자 항목, table 타입) JSON 배열 형식 저장 및 조회 확인
+
+## 9. inv-grid 렌더링
+
+- [ ] **test_inv_grid_investment_render**: 카테고리 1 투자 inv-grid 및 I-3 투자비율 ratio-bar 렌더링 확인
+- [ ] **test_inv_grid_personnel_render**: 카테고리 2 인력 컴팩트 그리드(Q10/Q28/Q11/Q12) 및 II-4 ratio-bar 렌더링 확인
+
+## 10. 비율 자동계산
+
+- [ ] **test_investment_ratio_api**: Q2/Q4 답변 저장 후 I-3 투자비율(B/A) 자동계산 표시 확인
+- [ ] **test_personnel_ratio_api**: Q10/Q28/Q11/Q12 답변 저장 후 II-4 인력비율(D/C) 자동계산 표시 확인
+
+## 11. table 타입 증빙 자료
+
+- [ ] **test_evidence_for_table_type**: table 타입 질문(Q29 CISO 활동내역) 증빙 파일(PDF) 업로드 및 삭제 확인
+
+## 12. 증빙 섹션 표시 조건
+
+- [ ] **test_evidence_section_toggle_by_value**: number 타입 금액 0 입력 시 증빙 섹션 숨김, 양수 입력 시 표시 전환 확인

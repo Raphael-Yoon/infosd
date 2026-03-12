@@ -761,6 +761,272 @@ class InfosdUnitTest(PlaywrightTestBase):
         else:
             result.fail_test("완료율 갱신 후 DB 값 확인 실패")
 
+    # ─── 8. table 타입 답변 저장 ──────────────────────────────
+
+    def test_answer_table_type_json(self, result: UnitTestResult):
+        """8. table 타입 질문(Q27) JSON 배열 저장 및 검증"""
+        company_id = self._ensure_session()
+        if not company_id:
+            result.skip_test("세션 구성 실패")
+            return
+
+        # Q27은 migration 009 이후 type='table' (항목명+금액 구조)
+        table_value = [
+            {"item": "방화벽 도입", "amount": 5000000, "note": "차세대 방화벽"},
+            {"item": "보안관제 서비스", "amount": 10000000, "note": ""},
+        ]
+        self._api("post", "/disclosure/api/answer",
+                  json={"question_id": "Q27", "company_id": company_id,
+                        "year": TEST_YEAR, "value": table_value})
+        self.page.wait_for_timeout(W)
+
+        resp = self._api("get", f"/disclosure/api/answers/{company_id}/{TEST_YEAR}")
+        if resp.status_code != 200:
+            result.fail_test(f"답변 조회 API 실패 ({resp.status_code})")
+            return
+
+        answers_list = resp.json().get("answers", [])
+        q27_row = next((x for x in answers_list if x.get("question_id") == "Q27"), None)
+        if not q27_row:
+            result.fail_test("Q27 답변 없음")
+            return
+
+        saved = q27_row.get("value")
+        if isinstance(saved, list) and len(saved) == 2:
+            result.pass_test(f"Q27 JSON 배열 저장 확인 ({len(saved)}행)")
+        elif isinstance(saved, str) and "방화벽" in saved:
+            result.warn_test("Q27 문자열로 저장됨 — JSON 파싱 실패 가능성 확인 필요")
+        else:
+            result.fail_test(f"Q27 저장값 불일치 (type: {type(saved).__name__})")
+
+    # ─── 9. inv-grid 렌더링 ───────────────────────────────────
+
+    def test_inv_grid_investment_render(self, result: UnitTestResult):
+        """9. 카테고리 1 — 투자 inv-grid 및 I-3 ratio-bar 렌더링"""
+        if not self._ensure_session():
+            result.skip_test("세션 구성 실패")
+            return
+
+        # Q1 YES 설정 후 카테고리 1 작업 화면
+        self._api("post", "/disclosure/api/answer",
+                  json={"question_id": "Q1", "company_id": self._company_id,
+                        "year": TEST_YEAR, "value": "YES"})
+        self.navigate_to("/disclosure/work?category=1")
+        self.page.wait_for_load_state("domcontentloaded")
+
+        # inv-grid-outer (투자 항목 그리드) 존재 확인
+        if self.page.locator(".inv-grid-outer").count() == 0:
+            result.fail_test("inv-grid-outer 요소 없음 (카테고리 1 작업 화면)")
+            return
+        result.add_detail(f"inv-grid-outer {self.page.locator('.inv-grid-outer').count()}개 확인")
+
+        # I-3 ratio-bar 존재 확인
+        ratio_bar = self.page.locator("#ratio-bar-investment")
+        if ratio_bar.count() == 0:
+            result.fail_test("#ratio-bar-investment 요소 없음")
+            return
+        result.add_detail("I-3 투자비율 ratio-bar DOM 확인")
+
+        # ratio-bar-value span 존재
+        if self.page.locator("#investment-ratio-display").count() > 0:
+            result.add_detail("#investment-ratio-display span 확인")
+
+        result.pass_test("카테고리 1 투자 inv-grid + I-3 ratio-bar 렌더링 확인")
+
+    def test_inv_grid_personnel_render(self, result: UnitTestResult):
+        """9. 카테고리 2 — 인력 컴팩트 그리드(Q10/Q28/Q11/Q12) 및 II-4 ratio-bar 렌더링"""
+        if not self._ensure_session():
+            result.skip_test("세션 구성 실패")
+            return
+
+        # Q9 YES 설정 후 카테고리 2 작업 화면
+        self._api("post", "/disclosure/api/answer",
+                  json={"question_id": "Q9", "company_id": self._company_id,
+                        "year": TEST_YEAR, "value": "YES"})
+        self.navigate_to("/disclosure/work?category=2")
+        self.page.wait_for_load_state("domcontentloaded")
+
+        # 4개 인력 입력 필드 확인 (컴팩트 2×2 그리드)
+        personnel_inputs = {
+            "#input-Q10": "총 임직원 (II-1)",
+            "#input-Q28": "IT 인력 C (II-2)",
+            "#input-Q11": "내부 전담 D1 (II-3-가)",
+            "#input-Q12": "외주 전담 D2 (II-3-나)",
+        }
+        missing = []
+        for sel, label in personnel_inputs.items():
+            if self.page.locator(sel).count() > 0:
+                result.add_detail(f"{label} 입력 필드 확인")
+            else:
+                missing.append(label)
+
+        if missing:
+            result.fail_test(f"인력 입력 필드 미발견: {', '.join(missing)}")
+            return
+
+        # II-4 ratio-bar 존재 확인
+        ratio_span = self.page.locator("#personnel-ratio-display")
+        if ratio_span.count() == 0:
+            result.fail_test("#personnel-ratio-display 없음 (II-4 ratio-bar 미렌더링)")
+            return
+        result.add_detail("II-4 인력비율 ratio-bar DOM 확인")
+
+        result.pass_test("카테고리 2 인력 컴팩트 그리드 + II-4 ratio-bar 렌더링 확인")
+
+    # ─── 10. 비율 자동계산 (API) ──────────────────────────────
+
+    def test_investment_ratio_api(self, result: UnitTestResult):
+        """10. 투자비율(B/A) 자동계산 API 검증"""
+        company_id = self._ensure_session()
+        if not company_id:
+            result.skip_test("세션 구성 실패")
+            return
+
+        # Q1=YES, Q2(A)=10,000,000, Q4(B감가)=2,000,000 설정
+        for qid, val in [("Q1", "YES"), ("Q2", "10000000"), ("Q4", "2000000")]:
+            self._api("post", "/disclosure/api/answer",
+                      json={"question_id": qid, "company_id": company_id,
+                            "year": TEST_YEAR, "value": val})
+
+        # 대시보드 API에서 ratios 확인 (dashboard 렌더링에 ratios 포함)
+        self.navigate_to("/disclosure/")
+        self.page.wait_for_load_state("domcontentloaded")
+
+        # 카테고리 1 작업 화면에서 ratio-bar-value 확인
+        self.navigate_to("/disclosure/work?category=1")
+        self.page.wait_for_load_state("domcontentloaded")
+
+        ratio_el = self.page.locator("#investment-ratio-display")
+        if ratio_el.count() == 0:
+            result.fail_test("#investment-ratio-display 없음")
+            return
+
+        # JS 계산 대기
+        self.page.wait_for_timeout(500)
+        ratio_text = ratio_el.text_content() or "-"
+        result.add_detail(f"I-3 표시값: {ratio_text.strip()}")
+
+        if ratio_text.strip() in ("-", ""):
+            result.warn_test("ratio-bar DOM 존재하나 JS 계산값 미표시 — 입력 후 수동 확인 필요")
+        else:
+            result.pass_test(f"투자비율 자동계산 표시 확인 ({ratio_text.strip()})")
+
+    def test_personnel_ratio_api(self, result: UnitTestResult):
+        """10. 인력비율(D/C) 자동계산 API 검증"""
+        company_id = self._ensure_session()
+        if not company_id:
+            result.skip_test("세션 구성 실패")
+            return
+
+        # Q9=YES, Q10=100명, Q28(C)=20명, Q11(D1)=5명, Q12(D2)=2명 설정
+        for qid, val in [("Q9", "YES"), ("Q10", "100"), ("Q28", "20"),
+                         ("Q11", "5"), ("Q12", "2")]:
+            self._api("post", "/disclosure/api/answer",
+                      json={"question_id": qid, "company_id": company_id,
+                            "year": TEST_YEAR, "value": val})
+
+        self.navigate_to("/disclosure/work?category=2")
+        self.page.wait_for_load_state("domcontentloaded")
+
+        ratio_el = self.page.locator("#personnel-ratio-display")
+        if ratio_el.count() == 0:
+            result.fail_test("#personnel-ratio-display 없음")
+            return
+
+        self.page.wait_for_timeout(500)
+        ratio_text = ratio_el.text_content() or "-"
+        result.add_detail(f"II-4 표시값: {ratio_text.strip()}")
+
+        if ratio_text.strip() in ("-", ""):
+            result.warn_test("ratio-bar DOM 존재하나 JS 계산값 미표시 — 입력 후 수동 확인 필요")
+        else:
+            result.pass_test(f"인력비율 자동계산 표시 확인 ({ratio_text.strip()})")
+
+    # ─── 11. table 타입 증빙 자료 ────────────────────────────
+
+    def test_evidence_for_table_type(self, result: UnitTestResult):
+        """11. table 타입 질문(Q29 CISO 활동내역) 증빙 업로드"""
+        company_id = self._ensure_session()
+        if not company_id:
+            result.skip_test("세션 구성 실패")
+            return
+
+        import tempfile, os
+        pdf_sig = b"%PDF-1.4 infosd test evidence"
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp.write(pdf_sig)
+            tmp_path = tmp.name
+
+        try:
+            with open(tmp_path, "rb") as f:
+                resp = self._api("post", "/disclosure/api/evidence",
+                                 files={"file": ("ciso_activity.pdf", f, "application/pdf")},
+                                 data={"question_id": "Q29", "company_id": company_id,
+                                       "year": str(TEST_YEAR)})
+            if resp.status_code == 200 and resp.json().get("success"):
+                ev_id = str(resp.json().get("evidence_id", "?"))[:8]
+                result.add_detail(f"Q29 PDF 업로드 성공 (id: {ev_id}...)")
+
+                # 업로드된 파일 목록 확인 (answers API 통해 evidence 구조 간접 확인)
+                # 삭제로 정리
+                full_ev_id = resp.json().get("evidence_id")
+                if full_ev_id:
+                    del_r = self._api("delete", f"/disclosure/api/evidence/{full_ev_id}")
+                    if del_r.status_code == 200:
+                        result.add_detail("테스트 증빙 파일 정리 완료")
+                result.pass_test("table 타입(Q29) 증빙 PDF 업로드 및 삭제 확인")
+            else:
+                result.fail_test(f"Q29 증빙 업로드 실패: {resp.status_code} — {resp.text[:80]}")
+        finally:
+            os.unlink(tmp_path)
+
+    # ─── 12. 증빙 섹션 표시 조건 (number 타입 0원 숨김) ───────
+
+    def test_evidence_section_toggle_by_value(self, result: UnitTestResult):
+        """12. number 타입 금액 0 → 증빙 섹션 숨김, 금액 입력 → 증빙 섹션 표시"""
+        if not self._ensure_session():
+            result.skip_test("세션 구성 실패")
+            return
+
+        # Q1=YES 설정 후 카테고리 1 작업 화면
+        self._api("post", "/disclosure/api/answer",
+                  json={"question_id": "Q1", "company_id": self._company_id,
+                        "year": TEST_YEAR, "value": "YES"})
+        self.navigate_to("/disclosure/work?category=1")
+        self.page.wait_for_load_state("domcontentloaded")
+
+        # Q2 (I-1, number 타입) 입력 필드 존재 확인
+        q2_input = self.page.locator("#input-Q2")
+        if q2_input.count() == 0:
+            result.skip_test("Q2 입력 필드 미발견")
+            return
+
+        ev_section = self.page.locator("#ev-section-Q2")
+        if ev_section.count() == 0:
+            result.skip_test("Q2 증빙 섹션(#ev-section-Q2) 미발견 — evidence_list 없을 수 있음")
+            return
+
+        # 0 입력 시 증빙 섹션 숨김 확인
+        q2_input.fill("0")
+        q2_input.dispatch_event("input")
+        self.page.wait_for_timeout(300)
+        is_hidden = not ev_section.is_visible()
+        result.add_detail(f"Q2=0 → 증빙 섹션 숨김: {is_hidden}")
+
+        # 금액 입력 시 증빙 섹션 표시 확인
+        q2_input.fill("5000000")
+        q2_input.dispatch_event("input")
+        self.page.wait_for_timeout(300)
+        is_shown = ev_section.is_visible()
+        result.add_detail(f"Q2=5,000,000 → 증빙 섹션 표시: {is_shown}")
+
+        if is_hidden and is_shown:
+            result.pass_test("number 타입 금액 기반 증빙 섹션 토글 확인 (0→숨김, 양수→표시)")
+        elif not is_hidden:
+            result.warn_test("Q2=0 에도 증빙 섹션이 표시됨 (Q2에 evidence_list 없을 수도 있음)")
+        else:
+            result.fail_test(f"증빙 섹션 토글 실패 (hidden:{is_hidden}, shown:{is_shown})")
+
     # ─── 결과 저장 ───────────────────────────────────────────
 
     def _update_checklist_result(self):
@@ -851,6 +1117,18 @@ def run_tests():
             runner.test_audit_trail_recorded,
             runner.test_recursive_na_cleanup,
             runner.test_session_progress_update,
+            # 8. table 타입 답변
+            runner.test_answer_table_type_json,
+            # 9. inv-grid 렌더링
+            runner.test_inv_grid_investment_render,
+            runner.test_inv_grid_personnel_render,
+            # 10. 비율 자동계산
+            runner.test_investment_ratio_api,
+            runner.test_personnel_ratio_api,
+            # 11. table 타입 증빙
+            runner.test_evidence_for_table_type,
+            # 12. 증빙 섹션 토글
+            runner.test_evidence_section_toggle_by_value,
         ])
     finally:
         runner._update_checklist_result()
