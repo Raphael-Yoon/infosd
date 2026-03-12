@@ -2,6 +2,41 @@
 
 ---
 
+## 2026-03-12
+
+### 변경 내역
+- [UI] work.html: 정보보호부문 투자액(B) Q4/Q5/Q6 inv-card에 증빙 업로드 섹션 추가
+- [UI] work.html: number 타입 금액 0원 시 증빙 섹션 자동 숨김 — `toggleEvidenceByValue()` JS 함수 구현
+- [UI] work.html: 입력 필드 배경색 흰색 버그 수정 (`background: var(--bg-main)` 명시, Chromium autofill 대응)
+- [UI] work.html: I-2 display_number 뱃지를 inv-grid-title에 추가
+- [UI] work.html: 인력 항목(Q10/Q28/Q11/Q12) 컴팩트 2×2 그리드로 통합 렌더링
+- [UI] work.html: I-3 투자비율(B/A), II-4 인력비율(D/C) ratio-bar 자동계산 표시 추가
+- [UI] work.html: table 타입 "+ 행 추가" 버튼 onclick → data-cols + JSON.parse 방식으로 수정 (이중 따옴표 충돌 버그 수정)
+- [UI] work.html: table 타입 증빙 섹션 항상 표시 (number 타입만 0원 조건 적용)
+- [백엔드] disclosure_routes.py: confirm 시 number 타입 0원 항목 필수 증빙 검증 제외 로직 추가
+- [DB] Migration 011: display_number 전체 재정렬 — 정보보호공시 서식과 1:1 매핑 (I, I-1, I-2-가 … II-6 등)
+- [DB] Migration 012: Q10(총 임직원) evidence_list 수정 — IT 인력 현황표/조직도 → 4대보험 가입자 명부/간이세액징수 신고서
+- [DB] Migration 013: Q29(CISO/CPO 활동내역) evidence_list 추가 — CISO/CPO 활동 근거 서류 (회의록, 보고자료 등)
+- [테스트] test_unit_infosd.py: 신규 7개 테스트 케이스 추가 (26개 → 33개)
+  - table 타입 JSON 배열 저장 검증 (Q27)
+  - 카테고리 1 투자 inv-grid + I-3 ratio-bar DOM 렌더링
+  - 카테고리 2 인력 컴팩트 그리드 + II-4 ratio-bar DOM 렌더링
+  - 투자비율/인력비율 자동계산 JS 표시 확인
+  - table 타입 Q29 증빙 PDF 업로드·삭제
+  - number 타입 금액 기반 증빙 섹션 토글
+- [테스트] unit_checklist_infosd.md: 섹션 8~12 추가 (7개 시나리오)
+
+### 변경 파일
+- `templates/disclosure/work.html`: UI 개선 다수 (투자·인력 그리드, ratio-bar, 증빙 토글, 버그 수정)
+- `disclosure_routes.py`: confirm 증빙 검증 로직 보완
+- `migrations/versions/011_display_number_realign.py`: display_number 재정렬 마이그레이션 (신규)
+- `migrations/versions/012_fix_q10_evidence_list.py`: Q10 evidence_list 수정 마이그레이션 (신규)
+- `migrations/versions/013_q29_evidence_list.py`: Q29 evidence_list 추가 마이그레이션 (신규)
+- `test/test_unit_infosd.py`: 신규 테스트 케이스 7개 추가
+- `test/unit_checklist_infosd.md`: 테스트 시나리오 섹션 8~12 추가
+
+---
+
 ## 2026-03-05
 
 ### 변경 내역
