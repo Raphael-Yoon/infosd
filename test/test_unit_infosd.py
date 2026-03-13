@@ -412,36 +412,13 @@ class InfosdUnitTest(PlaywrightTestBase):
 
     def test_answer_text(self, result: UnitTestResult):
         """3. 텍스트(textarea) 입력 및 저장"""
-        company_id = self._ensure_session()
-        if not company_id:
-            result.skip_test("세션 구성 실패")
-            return
-
-        self._go_work()
-        self._q1_yes()
-
-        q27 = self.page.locator("#input-Q27")
-        if q27.count() == 0 or not q27.is_visible():
-            result.skip_test("Q27 textarea 미발견")
-            return
-
-        test_text = "방화벽 도입(50만원), 보안관제(100만원)"
-        q27.fill(test_text)
-        q27.blur()
-        self.page.wait_for_timeout(W)
-
-        resp = self._api("get", f"/disclosure/api/answers/{company_id}/{TEST_YEAR}")
-        if resp.status_code == 200:
-            # answers는 list[{question_id, value, ...}] 구조
-            answers_list = resp.json().get("answers", [])
-            q27 = next((x for x in answers_list if x.get("question_id") == "Q27"), None)
-            saved = q27.get("value", "") if q27 else ""
-            if saved:
-                result.pass_test(f"Q27 텍스트 저장 확인 ({str(saved)[:40]})")
-            else:
-                result.fail_test("Q27 저장값 없음")
-        else:
-            result.warn_test(f"저장 확인 API 오류 ({resp.status_code})")
+        # [SKIP 사유] Q27은 migration 009_audit_qa_improvements 에서
+        # textarea → table 타입으로 변경되었으며, 현재 DB(isd_questions)에는
+        # textarea/text/long_text 타입 질문이 존재하지 않는다.
+        # test_answer_table_type_json 이 Q27 table 타입을 이미 검증하므로
+        # 본 테스트는 중복 방지 및 타입 불일치 오류 방지를 위해 skip 처리한다.
+        # 추후 textarea 타입 질문이 추가될 경우 해당 질문 ID로 대상을 교체할 것.
+        result.skip_test("Q27이 table 타입으로 변경됨 — 현재 DB에 textarea 타입 질문 없음. test_answer_table_type_json으로 대체 검증 중")
 
     def test_validation_negative(self, result: UnitTestResult):
         """3. 음수 입력 차단"""
@@ -498,6 +475,11 @@ class InfosdUnitTest(PlaywrightTestBase):
 
     def test_answer_confirmed_blocked(self, result: UnitTestResult):
         """3. 확정(confirmed) 상태에서 답변 수정 403 차단"""
+        # [SKIP 사유] 이 테스트는 연도 상태가 'confirmed'인 데이터가 있어야 동작한다.
+        # 자동화 테스트 세션(_ensure_session)은 신규 연도(TEST_YEAR=2026)를 생성하므로
+        # 기본적으로 'active' 상태이며, confirmed 상태로의 전환은 수동 조작이 필요하다.
+        # 따라서 자동 테스트 환경에서는 confirmed 연도가 없어 항상 skip 처리된다.
+        # 검증 방법: 수동으로 해당 연도를 confirmed 상태로 전환한 뒤 테스트 단독 실행.
         company_id = self._ensure_session()
         if not company_id:
             result.skip_test("세션 구성 실패")
@@ -509,7 +491,9 @@ class InfosdUnitTest(PlaywrightTestBase):
         if resp.status_code == 403:
             result.pass_test("confirmed 상태 수정 시도 시 403 확인")
         elif resp.status_code == 200:
-            result.skip_test("현재 세션이 confirmed 아님 — 확정 후 수동 재확인 필요")
+            # [SKIP] 현재 세션 연도(TEST_YEAR)가 confirmed 상태가 아님 (active 상태)
+            # 자동화 환경에서는 confirmed 연도 생성이 불가능하므로 항상 이 경로로 skip됨
+            result.skip_test("현재 세션 연도가 confirmed 아님 — 확정 후 수동 재확인 필요")
         else:
             result.warn_test(f"예상치 못한 응답: {resp.status_code}")
 

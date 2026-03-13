@@ -648,7 +648,7 @@
                 </div>
                 {% elif q.type == 'number' %}
                 <div class="num-input-wrap">
-                    <input type="text" id="input-{{ q.id }}" value="{{ answers.get(q.id, '') | comma }}" class="num-input" placeholder="0" oninput="formatNumber(this)" onchange="saveAnswer('{{ q.id }}', this.value){% if q.evidence_list %}; toggleEvidenceByValue('{{ q.id }}', this.value){% endif %}">
+                    <input type="text" id="input-{{ q.id }}" value="{{ answers.get(q.id, '') | comma }}" class="num-input" placeholder="0" oninput="formatNumber(this){% if q.evidence_list %}; toggleEvidenceByValue('{{ q.id }}', this.value){% endif %}" onchange="saveAnswer('{{ q.id }}', this.value){% if q.evidence_list %}; toggleEvidenceByValue('{{ q.id }}', this.value){% endif %}">
                     <span class="num-unit">{{ q.unit }}</span>
                 </div>
                 {% elif q.type in ['text', 'textarea', 'long_text'] %}
