@@ -286,13 +286,30 @@
     .inv-sum-label { color: #94a3b8; font-size: 0.85rem; font-weight: 700; }
     .inv-sum-value { color: #ffffff; font-size: 1.3rem; font-weight: 900; font-family: 'Pretendard', sans-serif; }
 
+    /* I-3 / II-4 자동계산 비율 표시 바 */
+    .ratio-bar {
+        background: linear-gradient(135deg, #0f2027 0%, #1a3a2a 100%);
+        border: 1.5px solid #1e4d3a;
+        border-radius: 12px;
+        padding: 14px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 12px;
+    }
+    .ratio-bar-label { color: #6ee7b7; font-size: 0.88rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .ratio-badge { background: #065f46; color: #6ee7b7; border-radius: 6px; padding: 2px 8px; font-size: 0.78rem; font-weight: 800; }
+    .ratio-bar-value { color: #34d399; font-size: 1.4rem; font-weight: 900; font-family: 'Pretendard', sans-serif; }
+
     /* Grid specific adjustment */
     .inv-card .num-input {
         font-size: 1.15rem;
         padding: 10px 8px;
+        background: var(--bg-main);
     }
     .inv-card .num-input-wrap {
         margin-top: 10px;
+        background: var(--bg-main);
     }
     .inv-card .num-unit {
         padding: 0 12px;
@@ -517,7 +534,7 @@
         {% if q.id == 'Q3' %}
         <div class="inv-grid-outer animate-fade-in">
             <div class="inv-grid-section">
-                <div class="inv-grid-title"><i class="fas fa-calculator text-primary"></i> 정보보호부문 투자액 (B) — 세부 항목</div>
+                <div class="inv-grid-title"><span class="q-number-badge" style="font-size:0.8rem; padding:3px 10px; margin-right:8px;">{{ q.display_number }}</span><i class="fas fa-calculator text-primary"></i> 정보보호부문 투자액 (B) — 세부 항목</div>
                 <div class="row g-3">
                     {% for sub_q in questions if sub_q.id in ['Q4', 'Q5', 'Q6'] %}
                     <div class="col-12 col-md-4">
@@ -528,9 +545,25 @@
                                 <input type="text" id="input-{{ sub_q.id }}"
                                        value="{{ answers.get(sub_q.id, '') | comma }}"
                                        class="num-input" placeholder="0" oninput="formatNumber(this)"
-                                       onchange="saveAnswer('{{ sub_q.id }}', this.value)">
+                                       onchange="saveAnswer('{{ sub_q.id }}', this.value); toggleEvidenceByValue('{{ sub_q.id }}', this.value)">
                                 <span class="num-unit">원</span>
                             </div>
+                            {% if sub_q.evidence_list %}
+                            {% set sub_cur_val = answers.get(sub_q.id, '') | string | replace(',', '') %}
+                            <div class="evidence-section" id="ev-section-{{ sub_q.id }}" style="margin-top:12px;{% if not sub_cur_val or sub_cur_val == '0' %} display:none;{% endif %}">
+                                <div class="evidence-label">증빙 자료</div>
+                                <div class="evidence-tags">
+                                    {% set ev_list = sub_q.evidence_list | from_json_or_default([]) %}
+                                    {% for ev_item in ev_list %}<span class="evidence-tag">{{ ev_item }}</span>{% endfor %}
+                                </div>
+                                <label class="upload-btn"><i class="fas fa-upload me-1"></i>파일 선택<input type="file" style="display:none;" onchange="uploadEvidence('{{ sub_q.id }}', this.files[0])"></label>
+                                <div id="evidence-list-{{ sub_q.id }}" style="margin-top:8px;">
+                                    {% for ev in evidence.get(sub_q.id, []) %}
+                                    <div class="ev-file-item"><span>{{ ev.file_name }}</span><button type="button" class="ev-del-btn" onclick="deleteEvidence('{{ sub_q.id }}', '{{ ev.id }}')"><i class="fas fa-times"></i></button></div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                     {% endfor %}
@@ -539,9 +572,60 @@
                     <div><div class="inv-sum-label">TOTAL AMOUNT</div><div style="color:#94a3b8; font-size:0.8rem; font-weight:600;">정보보호 투자액 합계 (B)</div></div>
                     <div><span id="investment-sum-b" class="inv-sum-value">0</span><span style="color:#64748b; font-size:0.8rem; font-weight:700; margin-left:4px;">원</span></div>
                 </div>
+                <!-- I-3: 투자비율 (자동계산 표시) -->
+                <div class="ratio-bar" id="ratio-bar-investment">
+                    <div class="ratio-bar-label"><span class="ratio-badge">I-3</span> 정보보호 투자비율 (B/A)</div>
+                    <div class="ratio-bar-value"><span id="investment-ratio-display">-</span></div>
+                </div>
             </div>
         </div>
-        {% elif q.id not in ['Q4', 'Q5', 'Q6'] %}
+        {% elif q.id == 'Q10' %}
+        {# ── 인력 컴팩트 그리드: II-1/II-2/II-3-가/II-3-나 + II-4 비율 ── #}
+        {% set per_ids = ['Q10', 'Q28', 'Q11', 'Q12'] %}
+        {% set per_labels = {'Q10': '총 임직원', 'Q28': 'IT 인력 (C)', 'Q11': '내부 전담 (D1)', 'Q12': '외주 전담 (D2)'} %}
+        <div class="inv-grid-outer animate-fade-in">
+            <div class="inv-grid-section">
+                <div class="inv-grid-title"><i class="fas fa-users text-primary me-1"></i> 인력 현황</div>
+                <div class="row g-3">
+                    {% for per_q in questions if per_q.id in per_ids %}
+                    <div class="col-6 col-md-3">
+                        <div class="inv-card h-100">
+                            <div class="inv-card-label">{{ per_q.display_number }}</div>
+                            <div class="inv-card-name" style="font-size:0.82rem; min-height:28px;">{{ per_labels[per_q.id] }}</div>
+                            <div class="num-input-wrap">
+                                <input type="text" id="input-{{ per_q.id }}"
+                                       value="{{ answers.get(per_q.id, '') | comma }}"
+                                       class="num-input" placeholder="0" oninput="formatNumber(this)"
+                                       onchange="saveAnswer('{{ per_q.id }}', this.value); updatePersonnelRatio(); toggleEvidenceByValue('{{ per_q.id }}', this.value)">
+                                <span class="num-unit" style="font-size:0.8rem; padding:0 8px;">명</span>
+                            </div>
+                            {% if per_q.evidence_list %}
+                            {% set per_cur_val = answers.get(per_q.id, '') | string | replace(',', '') %}
+                            <div class="evidence-section" id="ev-section-{{ per_q.id }}" style="margin-top:12px;{% if not per_cur_val or per_cur_val == '0' %} display:none;{% endif %}">
+                                <div class="evidence-label">증빙 자료</div>
+                                <div class="evidence-tags">
+                                    {% set ev_list = per_q.evidence_list | from_json_or_default([]) %}
+                                    {% for ev_item in ev_list %}<span class="evidence-tag">{{ ev_item }}</span>{% endfor %}
+                                </div>
+                                <label class="upload-btn"><i class="fas fa-upload me-1"></i>파일 선택<input type="file" style="display:none;" onchange="uploadEvidence('{{ per_q.id }}', this.files[0])"></label>
+                                <div id="evidence-list-{{ per_q.id }}" style="margin-top:8px;">
+                                    {% for ev in evidence.get(per_q.id, []) %}
+                                    <div class="ev-file-item"><span>{{ ev.file_name }}</span><button type="button" class="ev-del-btn" onclick="deleteEvidence('{{ per_q.id }}', '{{ ev.id }}')"><i class="fas fa-times"></i></button></div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="ratio-bar" style="margin-top:16px;">
+                    <div class="ratio-bar-label"><span class="ratio-badge">II-4</span> 정보보호 인력비율 (D/C)</div>
+                    <div class="ratio-bar-value"><span id="personnel-ratio-display">-</span></div>
+                </div>
+            </div>
+        </div>
+        {% elif q.id not in ['Q4', 'Q5', 'Q6', 'Q28', 'Q11', 'Q12'] %}
         <div class="q-card animate-fade-in level-{{ q.level }}" id="card-{{ q.id }}">
             <button type="button" class="reset-btn" onclick="resetAnswer('{{ q.id }}')" title="답변 초기화"><i class="fas fa-undo-alt"></i></button>
             <div class="q-header">
@@ -564,7 +648,7 @@
                 </div>
                 {% elif q.type == 'number' %}
                 <div class="num-input-wrap">
-                    <input type="text" id="input-{{ q.id }}" value="{{ answers.get(q.id, '') | comma }}" class="num-input" placeholder="0" oninput="formatNumber(this)" onchange="saveAnswer('{{ q.id }}', this.value)">
+                    <input type="text" id="input-{{ q.id }}" value="{{ answers.get(q.id, '') | comma }}" class="num-input" placeholder="0" oninput="formatNumber(this){% if q.evidence_list %}; toggleEvidenceByValue('{{ q.id }}', this.value){% endif %}" onchange="saveAnswer('{{ q.id }}', this.value){% if q.evidence_list %}; toggleEvidenceByValue('{{ q.id }}', this.value){% endif %}">
                     <span class="num-unit">{{ q.unit }}</span>
                 </div>
                 {% elif q.type in ['text', 'textarea', 'long_text'] %}
@@ -662,7 +746,10 @@
                     </tbody>
                 </table>
                 {% if q.options_list.dynamic_rows %}
-                <button type="button" onclick="addTableRow('{{ q.id }}', {{ q.options_list.columns | tojson }})"
+                <button type="button"
+                    data-qid="{{ q.id }}"
+                    data-cols='{{ q.options_list.columns | tojson }}'
+                    onclick="addTableRow(this.dataset.qid, JSON.parse(this.dataset.cols))"
                     style="margin-top:8px; background:#1a2535; color:#5b9bd5; border:1px dashed #2a3a50; border-radius:4px; padding:5px 14px; font-size:0.82rem; cursor:pointer;">
                     + 행 추가
                 </button>
@@ -671,8 +758,14 @@
                 {% endif %}
 
                 {% if q.evidence_list %}
-                <div class="evidence-section">
-                    <div class="evidence-label">필수 증빙 자료</div>
+                {% if q.type == 'number' %}
+                    {% set cur_val = answers.get(q.id, '') | string | replace(',', '') %}
+                    {% set ev_hidden = not cur_val or cur_val == '0' %}
+                {% else %}
+                    {% set ev_hidden = false %}
+                {% endif %}
+                <div class="evidence-section" id="ev-section-{{ q.id }}" {% if ev_hidden %}style="display:none;"{% endif %}>
+                    <div class="evidence-label">증빙 자료</div>
                     <div class="evidence-tags">
                         {% set ev_list = q.evidence_list | from_json_or_default([]) %}
                         {% for ev_item in (ev_list if ev_list is iterable else [q.evidence_list]) %}<span class="evidence-tag">{{ ev_item }}</span>{% endfor %}
@@ -785,7 +878,7 @@
         })
         .then(res => res.json())
         .then(data => {
-            if (!data.success) { alert('⚠️ 검증 오류: ' + data.message); }
+            if (!data.success) { alert('⚠️ 입력 오류: ' + data.message); }
             else { updateInvestmentSum(); if (['YES', 'NO', ''].includes(value)) { setTimeout(() => location.reload(), 120); } }
         });
     }
@@ -869,6 +962,40 @@
         });
         const sumEl = document.getElementById('investment-sum-b');
         if (sumEl) sumEl.textContent = total.toLocaleString();
+        updateInvestmentRatio();
+    }
+
+    function updateInvestmentRatio() {
+        const ratioEl = document.getElementById('investment-ratio-display');
+        if (!ratioEl) return;
+        const elA = document.getElementById('input-Q2');
+        const valA = elA ? (parseFloat(elA.value.replace(/,/g, '')) || 0) : 0;
+        let valB = 0;
+        ['Q4', 'Q5', 'Q6'].forEach(id => {
+            const el = document.getElementById('input-' + id);
+            if (el) valB += parseFloat(el.value.replace(/,/g, '')) || 0;
+        });
+        if (valA > 0) {
+            ratioEl.textContent = (valB / valA * 100).toFixed(2) + '%';
+        } else {
+            ratioEl.textContent = '-';
+        }
+    }
+
+    function updatePersonnelRatio() {
+        const ratioEl = document.getElementById('personnel-ratio-display');
+        if (!ratioEl) return;
+        const elC  = document.getElementById('input-Q28');
+        const elD1 = document.getElementById('input-Q11');
+        const elD2 = document.getElementById('input-Q12');
+        const valC  = elC  ? (parseFloat(elC.value.replace(/,/g, ''))  || 0) : 0;
+        const valD1 = elD1 ? (parseFloat(elD1.value.replace(/,/g, '')) || 0) : 0;
+        const valD2 = elD2 ? (parseFloat(elD2.value.replace(/,/g, '')) || 0) : 0;
+        if (valC > 0) {
+            ratioEl.textContent = ((valD1 + valD2) / valC * 100).toFixed(2) + '%';
+        } else {
+            ratioEl.textContent = '-';
+        }
     }
 
     function uploadEvidence(qId, file) {
@@ -905,6 +1032,13 @@
         if (confirm('삭제하시겠습니까?')) fetch('/disclosure/api/evidence/' + eid, { method: 'DELETE' }).then(res => res.json()).then(data => { if (data.success) location.reload(); });
     }
 
+    function toggleEvidenceByValue(qid, rawValue) {
+        const section = document.getElementById('ev-section-' + qid);
+        if (!section) return;
+        const num = parseFloat(String(rawValue).replace(/,/g, '')) || 0;
+        section.style.display = num > 0 ? '' : 'none';
+    }
+
     function toggleReferencePanel() {
         const panel = document.getElementById('reference-panel');
         const btn = document.querySelector('.reference-toggle-btn');
@@ -927,7 +1061,7 @@
                         opt.value = item.year;
                         
                         let statusText = '대기';
-                        if (item.status === 'completed') statusText = '작성완료';
+                        if (item.status === 'completed') statusText = '작성 완료';
                         else if (item.status === 'in_progress') statusText = '작성중';
                         
                         opt.textContent = `${item.year}년 [${statusText}]`;
@@ -1021,6 +1155,16 @@
     document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.num-input').forEach(input => formatNumber(input));
         updateInvestmentSum();
+        updateInvestmentRatio();
+        updatePersonnelRatio();
+        // 인력 비율 실시간 업데이트
+        ['Q28', 'Q11', 'Q12'].forEach(id => {
+            const el = document.getElementById('input-' + id);
+            if (el) el.addEventListener('change', updatePersonnelRatio);
+        });
+        // 투자 비율: Q2(A) 변경 시에도 재계산
+        const elQ2 = document.getElementById('input-Q2');
+        if (elQ2) elQ2.addEventListener('change', updateInvestmentRatio);
     });
 </script>
 {% endblock %}
