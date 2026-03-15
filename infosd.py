@@ -10,6 +10,11 @@ import os
 _APP_DIR = Path(__file__).parent.resolve()
 os.chdir(_APP_DIR)
 
+# DB 마이그레이션 자동 실행 (앱 시작 시 미적용 마이그레이션 자동 반영)
+from migrations.migration_manager import MigrationManager
+_db_path = os.getenv('infosd_DB_PATH', str(_APP_DIR / 'infosd.db'))
+MigrationManager(_db_path).upgrade()
+
 from company_routes import bp_company
 from disclosure_routes import bp_disclosure
 
