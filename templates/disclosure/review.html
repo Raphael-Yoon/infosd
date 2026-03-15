@@ -20,6 +20,9 @@
         <a href="/disclosure/" class="btn btn-white shadow-sm rounded-pill px-4 py-2 fw-bold border d-inline-flex align-items-center gap-2">
             <i class="fas fa-th-large text-primary"></i> 대시보드로
         </a>
+        <a href="{{ url_for('disclosure.history_view', company_id=company.id, year=year) }}" class="btn btn-white shadow-sm rounded-pill px-4 py-2 fw-bold border d-inline-flex align-items-center gap-2">
+            <i class="fas fa-history text-secondary"></i> Audit Trail
+        </a>
     </div>
     
     <!-- 상단 경로 및 헤더 -->
@@ -42,16 +45,22 @@
         <button class="btn btn-premium-action px-4 py-2 rounded-pill shadow-sm fw-bold" onclick="alert('공시 자료 생성 기능은 현재 준비 중입니다 (양식 업데이트 대기 중).')">
             <i class="fas fa-file-export me-2"></i>공시 자료 생성
         </button>
-        {% else %}
-        <form action="/disclosure/confirm" method="post" onsubmit="return confirm('작성된 내용을 확정하시겠습니까? 확정 후에는 수정이 불가능합니다.')">
+        {% elif session and session.status == 'submitted' %}
+        <form action="/disclosure/confirm" method="post" onsubmit="return confirm('최종적으로 공시 자료를 확정하시겠습니까? 확정 후에는 내용 수정이 제한됩니다.')">
             <button type="submit" class="btn btn-premium-action px-4 py-2 rounded-pill shadow-sm fw-bold" {% if overall < 100 %}disabled title="100% 작성 시 가능"{% endif %}>
-                <i class="fas fa-lock me-2"></i>공시 자료 확정
+                <i class="fas fa-lock me-2"></i>공시 자료 확정 (Confirm)
+            </button>
+        </form>
+        {% else %}
+        <form action="/disclosure/submit" method="post" onsubmit="return confirm('작성된 내용을 바탕으로 검토 요청을 진행하시겠습니까?')">
+            <button type="submit" class="btn btn-primary px-4 py-2 rounded-pill shadow-sm fw-bold" {% if overall < 100 %}disabled title="100% 작성 시 가능"{% endif %} style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none;">
+                <i class="fas fa-paper-plane me-2"></i>검토 요청 (Submit)
             </button>
         </form>
         {% endif %}
-        <a href="/disclosure/download/excel" class="btn btn-white shadow-sm rounded-pill px-4 py-2 fw-bold border">
+        <button class="btn btn-white shadow-sm rounded-pill px-4 py-2 fw-bold border" onclick="alert('공시 양식이 확정되지 않아 엑셀 다운로드가 임시 유보되었습니다.')">
             <i class="fas fa-file-excel text-success me-2"></i>Raw 데이터 (Excel)
-        </a>
+        </button>
     </div>
 </div>
 
@@ -148,9 +157,11 @@
                     </td>
                     <td class="text-center">
                         {% if q_id in evidence and evidence[q_id] %}
-                        <span class="badge bg-success-subtle text-success border px-3 py-2 rounded-pill fw-bold">
-                            <i class="fas fa-file-alt me-1"></i> {{ evidence[q_id] | length }}건
-                        </span>
+                        {% for ev in evidence[q_id] %}
+                        <a href="javascript:void(0)" onclick="viewEvidenceInline('{{ ev.file_url }}', '{{ ev.file_type }}', '{{ ev.file_name }}')" class="badge bg-success-subtle text-success border px-2 py-1 mb-1 rounded fw-bold text-truncate d-block text-start" style="max-width:180px;" title="{{ ev.file_name }}">
+                            <i class="fas fa-search me-1"></i> {{ ev.file_name }}
+                        </a>
+                        {% endfor %}
                         {% else %}
                         <span class="text-muted small opacity-50">-</span>
                         {% endif %}
@@ -172,5 +183,53 @@
         </div>
     </div>
 </div>
+
+<!-- Inline Evidence Viewer Modal -->
+<div class="modal fade" id="evidenceViewerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
+            <div class="modal-header border-bottom" style="background: var(--bg-main);">
+                <h5 class="modal-title fw-bold" id="evidenceModalTitle">
+                    <i class="fas fa-file-alt text-primary me-2"></i><span id="evModalFilename">파일 뷰어</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 text-center" style="background: #1e1e1e; min-height: 500px; max-height: 80vh; overflow-y: auto; display: flex; align-items: center; justify-content: center;">
+                <div id="evModalContent" style="width: 100%; height: 100%; min-height: 600px;"></div>
+            </div>
+            <div class="modal-footer border-top bg-light pb-2 pt-2" style="background: var(--bg-main);">
+                <a id="evModalDownloadBtn" href="#" class="btn btn-primary fw-bold px-4 rounded-pill">
+                    <i class="fas fa-download me-2"></i>원본 다운로드
+                </a>
+                <button type="button" class="btn btn-secondary fw-bold rounded-pill" data-bs-dismiss="modal">닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function viewEvidenceInline(url, type, filename) {
+    document.getElementById('evModalFilename').textContent = filename;
+    document.getElementById('evModalDownloadBtn').href = url; // 다운로드 링크
+
+    const viewerHtml = document.getElementById('evModalContent');
+    const inlineUrl = url + '?inline=1';
+
+    if (['pdf'].includes(type.toLowerCase())) {
+        viewerHtml.innerHTML = `<iframe src="${inlineUrl}" style="width:100%; height:100%; border:none; min-height:600px;"></iframe>`;
+    } else if (['jpg', 'jpeg', 'png', 'gif'].includes(type.toLowerCase())) {
+        viewerHtml.innerHTML = `<img src="${inlineUrl}" style="max-width:100%; max-height:80vh; object-fit:contain;">`;
+    } else {
+        viewerHtml.innerHTML = `<div class="p-5 text-center text-white">
+            <i class="fas fa-file-download fa-3x mb-3 text-secondary"></i>
+            <h5 class="fw-bold">이 브라우저에서 바로 볼 수 없는 파일 형식입니다.</h5>
+            <p class="text-secondary small">아래 원본 다운로드 버튼을 눌러 확인해 주세요.</p>
+        </div>`;
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('evidenceViewerModal'));
+    modal.show();
+}
+</script>
 
 {% endblock %}

@@ -1,4 +1,4 @@
-﻿"""
+"""
 infosd - 공시 작업 라우팅 (4+5단계)
 """
 import json
@@ -624,7 +624,28 @@ def upload_evidence():
             return jsonify({'success': False, 'message': '파일명이 없습니다.'}), 400
 
         if not _allowed_file(file.filename):
-            return jsonify({'success': False, 'message': '허용되지 않는 파일 형식입니다.'}), 400
+            return jsonify({'success': False, 'message': '허용되지 않는 파일 확장자입니다.'}), 400
+
+        # Magic Number (파일 시그니처) 검사 로직 추가
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        header = file.read(16)
+        file.seek(0)
+        
+        # 기본적 매직넘버 패턴
+        magic_numbers = {
+            'pdf': b'%PDF',
+            'png': b'\x89PNG',
+            'jpg': b'\xff\xd8',
+            'jpeg': b'\xff\xd8',
+            'docx': b'PK\x03\x04',
+            'xlsx': b'PK\x03\x04',
+            'zip': b'PK\x03\x04'
+        }
+        
+        if ext in magic_numbers:
+            if not header.startswith(magic_numbers[ext]):
+                return jsonify({'success': False, 'message': f'실제 파일 형식이 .{ext}와 일치하지 않습니다. (악성코드 의심)'}), 400
+
 
         # 저장 경로 생성
         save_dir = os.path.join(UPLOAD_FOLDER, company_id, str(year))
@@ -690,9 +711,57 @@ def delete_evidence(evidence_id):
 
 @bp_disclosure.route('/evidence/file/<company_id>/<int:year>/<filename>')
 def serve_evidence(company_id, year, filename):
-    """증빙 파일 서빙"""
+    """증빙 파일 서빙 (원본 파일명 복원)"""
     directory = os.path.join(UPLOAD_FOLDER, company_id, str(year))
-    return send_from_directory(directory, filename)
+    file_url = f"/disclosure/evidence/file/{company_id}/{year}/{filename}"
+    
+    original_filename = filename
+    with get_db() as conn:
+        ev = conn.execute(
+            'SELECT file_name FROM ipd_evidence WHERE file_url=?', (file_url,)
+        ).fetchone()
+        if ev and ev['file_name']:
+            original_filename = ev['file_name']
+            
+    inline = request.args.get('inline', '0') == '1'
+    return send_from_directory(
+        directory, filename, 
+        as_attachment=not inline, 
+        download_name=original_filename if not inline else None
+    )
+
+# ============================================================
+# 변경 이력 (Audit Trail)
+# ============================================================
+
+@bp_disclosure.route('/history/<company_id>/<int:year>')
+def history_view(company_id, year):
+    """과거 변경 이력 추적 브라우저 (Audit Trail)"""
+    with get_db() as conn:
+        company = conn.execute('SELECT name FROM ipd_companies WHERE id=?', (company_id,)).fetchone()
+        if not company:
+            flash('회사를 찾을 수 없습니다.', 'error')
+            return redirect(url_for('company.index'))
+
+        # 질문 메타데이터와 조인하여 이력 역순 조회
+        rows = conn.execute('''
+            SELECT h.changed_at, h.changed_by, h.old_value, h.new_value, 
+                   q.type as q_type, q.text as q_text, q.display_number
+            FROM ipd_answer_history h
+            LEFT JOIN ipd_questions q ON h.question_id = q.id
+            WHERE h.company_id = ? AND h.year = ?
+            ORDER BY h.changed_at DESC
+        ''', (company_id, year)).fetchall()
+        
+        history_data = []
+        for r in rows:
+            history_data.append(dict(r))
+            
+    return render_template('disclosure/history.html',
+                           company_name=company['name'],
+                           company_id=company_id,
+                           year=year,
+                           history_data=history_data)
 
 
 # ============================================================

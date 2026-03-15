@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}공시 데이터 변경 이력 - infosd{% endblock %}
+
+{% block content %}
+<div class="container py-5 mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold"><i class="fas fa-history text-primary me-2"></i>변경 이력 (Audit Trail)</h2>
+            <p class="text-muted mb-0">{{ company_name }} - {{ year }}년도 공시 데이터 변경 이력 관리</p>
+        </div>
+        <div>
+            <a href="/disclosure/review" class="btn btn-outline-secondary rounded-pill fw-bold">
+                <i class="fas fa-arrow-left me-2"></i>리뷰 화면으로 돌아가기
+            </a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body p-0 table-responsive rounded-4">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">변경 일시</th>
+                        <th>변경자</th>
+                        <th>문항</th>
+                        <th>이전 데이터</th>
+                        <th><i class="fas fa-arrow-right text-muted"></i></th>
+                        <th>변경 데이터</th>
+                    </tr>
+                </thead>
+                <tbody class="border-top-0">
+                    {% for item in history_data %}
+                    <tr>
+                        <td class="ps-4 text-muted small">{{ item.changed_at }}</td>
+                        <td><span class="badge bg-secondary">{{ item.changed_by }}</span></td>
+                        <td>
+                            <strong class="text-primary">{{ item.display_number }}</strong><br>
+                            <span class="small text-muted" style="max-width:200px; display:inline-block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{{ item.q_text }}">{{ item.q_text }}</span>
+                        </td>
+                        <td>
+                            {% if item.old_value %}
+                                <span class="text-danger text-decoration-line-through">{{ item.old_value }}</span>
+                            {% else %}
+                                <span class="text-muted fst-italic">없음</span>
+                            {% endif %}
+                        </td>
+                        <td><i class="fas fa-arrow-right text-primary opacity-50"></i></td>
+                        <td>
+                            {% if item.new_value %}
+                                <span class="text-success fw-bold">{{ item.new_value }}</span>
+                            {% else %}
+                                <span class="text-muted fst-italic">삭제됨</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">변경 이력이 없습니다.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

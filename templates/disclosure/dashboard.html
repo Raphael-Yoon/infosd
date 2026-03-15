@@ -20,6 +20,37 @@
             <i class="fas fa-home text-primary"></i> 기업 목록(Home)으로
         </a>
     </div>
+
+    {% if session and session.status == 'confirmed' %}
+    <div class="alert alert-success border-0 shadow-sm rounded-4 mb-4 animate-fade-in d-flex align-items-center overflow-hidden position-relative" style="background: linear-gradient(135deg, #064e3b 0%, #10b981 100%); color: white;">
+        <div class="position-absolute end-0 top-0 h-100" style="width: 30%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1)); transform: skewX(-15deg); animation: shine 3s infinite;"></div>
+        <div class="p-3 me-3 bg-white bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+            <i class="fas fa-shield-alt fa-2x text-white"></i>
+        </div>
+        <div>
+            <h4 class="fw-bold mb-1" style="letter-spacing: -0.5px;">기업의 든든한 방패를 완성했습니다.</h4>
+            <p class="mb-0 opacity-75 small">정보보호공시 자료가 최종 확정되었습니다. Snowball 플랫폼과 함께 안전한 내일을 만들어갑니다.</p>
+        </div>
+    </div>
+    {% elif session and session.status == 'submitted' %}
+    <div class="alert alert-warning border-0 shadow-sm rounded-4 mb-4 animate-fade-in d-flex align-items-center overflow-hidden position-relative" style="background: linear-gradient(135deg, #b45309 0%, #f59e0b 100%); color: white;">
+        <div class="p-3 me-3 bg-white bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+            <i class="fas fa-search-plus fa-2x text-white animate-pulse"></i>
+        </div>
+        <div>
+            <h4 class="fw-bold mb-1" style="letter-spacing: -0.5px;">안전한 내일을 위한 검토가 진행 중입니다.</h4>
+            <p class="mb-0 opacity-75 small">내용을 최종적으로 점검하고 있습니다. 확정하기 버튼을 눌러 공시를 완료해 주세요.</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <style>
+        @keyframes shine {
+            0% { transform: skewX(-15deg) translateX(-150%); }
+            100% { transform: skewX(-15deg) translateX(300%); }
+        }
+    </style>
+
     <!-- Overall Progress (Top Stats) -->
     <div
         style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 16px; padding: 40px; margin-bottom: 30px; box-shadow: var(--shadow-main); transition: all 0.3s ease;">
@@ -31,9 +62,13 @@
                     <span class="badge bg-primary-subtle text-primary border border-primary px-3 py-1 rounded-pill fw-bold">
                         <i class="fas fa-lock me-1"></i> 데이터 확정됨
                     </span>
+                    {% elif session and session.status == 'submitted' %}
+                    <span class="badge bg-warning-subtle text-warning border border-warning px-3 py-1 rounded-pill fw-bold animate-pulse" style="color: #b45309 !important;">
+                        <i class="fas fa-hourglass-half me-1"></i> 확정 대기 중 (검토 중)
+                    </span>
                     {% else %}
                     <span class="badge bg-success-subtle text-success border border-success px-3 py-1 rounded-pill fw-bold animate-pulse">
-                        작성 완료 (확정 대기)
+                        작성 완료 (검토 요청 대기)
                     </span>
                     {% endif %}
                 {% endif %}
@@ -45,9 +80,13 @@
                 <a href="/disclosure/review" class="btn btn-primary fw-bold px-4 py-2 rounded-pill shadow-sm" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none;">
                     확정된 자료 보기 <i class="fas fa-lock ms-2"></i>
                 </a>
+                {% elif session and session.status == 'submitted' %}
+                <a href="/disclosure/review" class="btn btn-warning fw-bold px-4 py-2 rounded-pill shadow-sm text-white" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border: none;">
+                    최종 확정하기 <i class="fas fa-check-double ms-2"></i>
+                </a>
                 {% elif overall == 100 %}
                 <a href="/disclosure/review" class="btn btn-primary fw-bold px-4 py-2 rounded-pill shadow-sm" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none;">
-                    리뷰 및 확정하기 <i class="fas fa-check-double ms-2"></i>
+                    검토 요청하기 <i class="fas fa-paper-plane ms-2"></i>
                 </a>
                 {% else %}
                 <a href="/disclosure/review" class="btn btn-white fw-bold px-4 py-2 rounded-pill shadow-sm border" style="color: var(--text-main);">
@@ -74,7 +113,7 @@
             </div>
             <div class="stat-value"><span id="dashboard-inv-ratio">{{ ratios.investment_ratio }}</span><small
                     style="font-size: 1.2rem; font-weight: 600; color: #0ea5e9;">%</small></div>
-            <div class="stat-label">정보보호 투자 비율 (B/A)</div>
+            <div class="stat-label">정보보호부문 투자 비율 (B/A)</div>
         </div>
         <div class="stat-card">
             <div class="stat-icon personnel">
@@ -82,7 +121,7 @@
             </div>
             <div class="stat-value"><span id="dashboard-per-ratio">{{ ratios.personnel_ratio }}</span><small
                     style="font-size: 1.2rem; font-weight: 600; color: #10b981;">%</small></div>
-            <div class="stat-label">정보보호 인력 비율 ((D1+D2)/C)</div>
+            <div class="stat-label">정보보호부문 인력 비율 ((D1+D2)/C)</div>
         </div>
         <div class="stat-card">
             <div class="stat-icon certification">
