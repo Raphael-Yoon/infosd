@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}로그인 — 정보보호공시 시스템{% endblock %}
+{% block content %}
+
+<div class="text-center animate-fade-in pb-4" style="padding-top: 80px;">
+    <a href="#">
+        <img src="{{ url_for('static', filename='images/logos/logo.png') }}"
+             alt="정보보호공시 시스템 로고"
+             class="logo-img"
+             style="max-width: 480px; width: 100%; height: auto;">
+    </a>
+</div>
+
+<div class="mx-auto animate-fade-in" style="max-width: 440px;">
+    <div class="progress-card p-5 shadow-sm">
+        <h5 class="fw-bold mb-1 text-center">로그인</h5>
+        <p class="text-muted small text-center mb-4">등록된 이메일 주소를 입력하시면<br>인증 코드를 보내드립니다.</p>
+
+        {% if error %}
+        <div class="alert alert-danger rounded-3 small py-2 px-3 mb-3">
+            <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+        </div>
+        {% endif %}
+
+        <form method="post" action="{{ url_for('login.request_otp') }}">
+            <div class="mb-3">
+                <label class="form-label fw-bold text-muted small">이메일 주소</label>
+                <input type="email" name="email" class="form-control form-control-lg rounded-4 border"
+                       placeholder="example@company.com" required autofocus
+                       value="{{ email or '' }}">
+            </div>
+            <button type="submit" class="btn-premium-action w-100 mt-2">
+                <i class="fas fa-paper-plane me-2"></i>인증 코드 받기
+            </button>
+        </form>
+
+        {% if show_local_login %}
+        <div class="mt-4 pt-3 border-top text-center">
+            <p class="text-muted small mb-2 opacity-50">개발 환경 전용</p>
+            <form method="post" action="{{ url_for('login.local_admin_login') }}">
+                <button type="submit" class="btn btn-outline-secondary rounded-pill px-4 fw-bold small">
+                    <i class="fas fa-laptop-code me-2"></i>로컬 관리자로 로그인
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

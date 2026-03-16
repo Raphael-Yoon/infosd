@@ -4,6 +4,8 @@ infosd - 회사/연도 관리 라우팅
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from db_config import get_db, generate_uuid
+from auth import login_required, admin_required, get_user_company_ids
+from flask import session
 
 bp_company = Blueprint('company', __name__)
 
@@ -33,12 +35,27 @@ def _delete_target_data(conn, company_id, year):
 # ============================================================
 
 @bp_company.route('/')
+@login_required
 def index():
     """메인 페이지 — 회사+연도 목록 및 진행률"""
+    is_admin = session.get('is_admin', False)
+    user_id = session.get('user_id')
+
     with get_db() as conn:
-        companies = conn.execute(
-            'SELECT * FROM isd_companies ORDER BY name'
-        ).fetchall()
+        if is_admin:
+            companies = conn.execute(
+                'SELECT * FROM isd_companies ORDER BY name'
+            ).fetchall()
+        else:
+            allowed_ids = get_user_company_ids(user_id)
+            if not allowed_ids:
+                companies = []
+            else:
+                placeholders = ','.join('?' * len(allowed_ids))
+                companies = conn.execute(
+                    f'SELECT * FROM isd_companies WHERE id IN ({placeholders}) ORDER BY name',
+                    list(allowed_ids)
+                ).fetchall()
 
         result = []
         for c in companies:
@@ -72,6 +89,7 @@ def index():
 # ============================================================
 
 @bp_company.route('/company/add', methods=['POST'])
+@admin_required
 def add_company():
     """회사 등록"""
     name = request.form.get('name', '').strip()
@@ -99,6 +117,7 @@ def add_company():
 
 
 @bp_company.route('/company/<company_id>/edit', methods=['POST'])
+@admin_required
 def edit_company(company_id):
     """회사 명칭 수정"""
     new_name = request.form.get('name', '').strip()
@@ -126,6 +145,7 @@ def edit_company(company_id):
 
 
 @bp_company.route('/company/<company_id>/delete', methods=['POST'])
+@admin_required
 def delete_company(company_id):
     """회사 삭제 (연관 데이터 전체 포함)"""
     with get_db() as conn:
@@ -157,6 +177,7 @@ def delete_company(company_id):
 # ============================================================
 
 @bp_company.route('/company/<company_id>/year/add', methods=['POST'])
+@admin_required
 def add_year(company_id):
     """공시 연도 추가"""
     year_str = request.form.get('year', '').strip()
@@ -195,6 +216,7 @@ def add_year(company_id):
 
 
 @bp_company.route('/company/<company_id>/year/<int:year>/delete', methods=['POST'])
+@admin_required
 def delete_year(company_id, year):
     """연도 삭제 (해당 연도 공시 데이터 포함)"""
     with get_db() as conn:

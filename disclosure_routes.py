@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 from flask import (Blueprint, render_template, request, redirect,
                    url_for, flash, jsonify, send_from_directory, abort, session)
 from db_config import get_db, generate_uuid
+from auth import login_required, can_access_company
 
 bp_disclosure = Blueprint('disclosure', __name__, url_prefix='/disclosure')
 
@@ -317,14 +318,18 @@ def _calc_cat_progress(all_questions, questions_dict, answers):
 
 @bp_disclosure.route('/select/<company_id>/<int:year>')
 @bp_disclosure.route('/<company_id>/<int:year>')
+@login_required
 def select_session(company_id, year):
     """공시 작업 세션 설정 후 대시보드로 리다이렉트 (주소창 ID 숨김 및 하위 호환성)"""
+    if not can_access_company(company_id):
+        abort(403)
     session['current_company_id'] = company_id
     session['current_year'] = year
     return redirect(url_for('disclosure.dashboard'))
 
 
 @bp_disclosure.route('/')
+@login_required
 def dashboard():
     """공시 작업 대시보드 — 카테고리별 진행률 (세션 기반)"""
     company_id = session.get('current_company_id')
@@ -381,6 +386,7 @@ def dashboard():
 # ============================================================
 
 @bp_disclosure.route('/work')
+@login_required
 def work():
     """질문-답변 입력 화면 (세션 기반)"""
     company_id = session.get('current_company_id')
@@ -465,6 +471,7 @@ def work():
 # ============================================================
 
 @bp_disclosure.route('/api/answer', methods=['POST'])
+@login_required
 def save_answer():
     """답변 저장 (Snowball 검증 엔진 이식)"""
     try:
@@ -606,6 +613,7 @@ def save_answer():
 # ============================================================
 
 @bp_disclosure.route('/api/evidence', methods=['POST'])
+@login_required
 def upload_evidence():
     """증빙 자료 업로드"""
     try:
@@ -684,6 +692,7 @@ def upload_evidence():
 
 
 @bp_disclosure.route('/api/evidence/<evidence_id>', methods=['DELETE'])
+@login_required
 def delete_evidence(evidence_id):
     """증빙 자료 삭제"""
     try:
@@ -710,8 +719,11 @@ def delete_evidence(evidence_id):
 
 
 @bp_disclosure.route('/evidence/file/<company_id>/<int:year>/<filename>')
+@login_required
 def serve_evidence(company_id, year, filename):
     """증빙 파일 서빙 (원본 파일명 복원)"""
+    if not can_access_company(company_id):
+        abort(403)
     directory = os.path.join(UPLOAD_FOLDER, company_id, str(year))
     file_url = f"/disclosure/evidence/file/{company_id}/{year}/{filename}"
     
@@ -735,8 +747,11 @@ def serve_evidence(company_id, year, filename):
 # ============================================================
 
 @bp_disclosure.route('/history/<company_id>/<int:year>')
+@login_required
 def history_view(company_id, year):
     """과거 변경 이력 추적 브라우저 (Audit Trail)"""
+    if not can_access_company(company_id):
+        abort(403)
     with get_db() as conn:
         company = conn.execute('SELECT name FROM ipd_companies WHERE id=?', (company_id,)).fetchone()
         if not company:
@@ -769,6 +784,7 @@ def history_view(company_id, year):
 # ============================================================
 
 @bp_disclosure.route('/review')
+@login_required
 def review():
     """공시 자료 전체 검토 화면 (세션 기반)"""
     company_id = session.get('current_company_id')
@@ -880,6 +896,7 @@ def _calculate_ratios(conn, company_id, year, answers=None):
 # ============================================================
 
 @bp_disclosure.route('/submit', methods=['POST'])
+@login_required
 def submit_disclosure():
     """공시 자료 검토 요청 (SoD: 작성자 → 검토자 단계 분리)"""
     company_id = session.get('current_company_id')
@@ -917,6 +934,7 @@ def submit_disclosure():
 
 
 @bp_disclosure.route('/confirm', methods=['POST'])
+@login_required
 def confirm_disclosure():
     """공시 자료 확정 처리"""
     company_id = session.get('current_company_id')
@@ -987,6 +1005,7 @@ def confirm_disclosure():
     return redirect(url_for('disclosure.review'))
 
 @bp_disclosure.route('/unconfirm', methods=['POST'])
+@login_required
 def unconfirm_disclosure():
     """공시 자료 확정 취소 (작성 가능 상태로 복구)"""
     company_id = session.get('current_company_id')
@@ -1015,8 +1034,11 @@ def unconfirm_disclosure():
 # ============================================================
 
 @bp_disclosure.route('/api/years/<company_id>')
+@login_required
 def get_available_years(company_id):
     """특정 회사의 데이터가 존재하는 연도 목록 조회"""
+    if not can_access_company(company_id):
+        return jsonify({'success': False, 'message': '접근 권한이 없습니다.'}), 403
     try:
         with get_db() as conn:
             # isd_targets와 isd_sessions를 JOIN하여 연도와 상태 추출
@@ -1035,8 +1057,11 @@ def get_available_years(company_id):
 
 
 @bp_disclosure.route('/api/answers/<company_id>/<int:year>')
+@login_required
 def get_year_answers(company_id, year):
     """특정 연도의 모든 질문 상세 정보와 답변 데이터 조회 (카테고리 필터 지원)"""
+    if not can_access_company(company_id):
+        return jsonify({'success': False, 'message': '접근 권한이 없습니다.'}), 403
     category_id = request.args.get('category_id', type=int)
     
     try:

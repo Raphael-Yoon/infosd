@@ -803,7 +803,7 @@ body {
 /* --- Theme Toggle Button --- */
 .theme-toggle-btn {
     position: fixed;
-    top: 20px;
+    bottom: 24px;
     right: 20px;
     z-index: 2000;
     width: 48px;

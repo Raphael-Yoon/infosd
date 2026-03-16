@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}인증 코드 확인 — 정보보호공시 시스템{% endblock %}
+{% block content %}
+
+<div class="text-center animate-fade-in pb-4" style="padding-top: 80px;">
+    <a href="#">
+        <img src="{{ url_for('static', filename='images/logos/logo.png') }}"
+             alt="정보보호공시 시스템 로고"
+             class="logo-img"
+             style="max-width: 480px; width: 100%; height: auto;">
+    </a>
+</div>
+
+<div class="mx-auto animate-fade-in" style="max-width: 440px;">
+    <div class="progress-card p-5 shadow-sm">
+        <h5 class="fw-bold mb-1 text-center">인증 코드 입력</h5>
+        <p class="text-muted small text-center mb-4">
+            <strong>{{ email }}</strong> 으로 전송된<br>
+            6자리 인증 코드를 입력해 주세요. <span class="text-danger">(5분 유효)</span>
+        </p>
+
+        {% if error %}
+        <div class="alert alert-danger rounded-3 small py-2 px-3 mb-3">
+            <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+        </div>
+        {% endif %}
+
+        <form method="post" action="{{ url_for('login.verify_otp_view') }}">
+            <input type="hidden" name="email" value="{{ email }}">
+            <div class="mb-3">
+                <label class="form-label fw-bold text-muted small">인증 코드</label>
+                <input type="text" name="otp" class="form-control form-control-lg rounded-4 border text-center fw-bold"
+                       placeholder="000000" maxlength="6" inputmode="numeric"
+                       pattern="[0-9]{6}" required autofocus
+                       style="font-size: 1.8rem; letter-spacing: 0.4rem;">
+            </div>
+            <button type="submit" class="btn-premium-action w-100 mt-2">
+                <i class="fas fa-check-circle me-2"></i>확인
+            </button>
+        </form>
+
+        <div class="text-center mt-3">
+            <a href="{{ url_for('login.login_page') }}" class="text-muted small">
+                <i class="fas fa-redo me-1"></i>코드 재발송
+            </a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

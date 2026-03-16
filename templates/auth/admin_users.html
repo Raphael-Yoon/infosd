@@ -1,0 +1,352 @@
+{% extends 'base.html' %}
+{% block title %}관리자 메뉴 — 정보보호공시 시스템{% endblock %}
+{% block content %}
+
+<div class="text-center animate-fade-in pb-4" style="padding-top: 80px;">
+    <a href="{{ url_for('company.index') }}">
+        <img src="{{ url_for('static', filename='images/logos/logo.png') }}"
+             alt="정보보호공시 시스템 로고"
+             class="logo-img"
+             style="max-width: 480px; width: 100%; height: auto;">
+    </a>
+</div>
+
+<div class="max-width-1000 mx-auto animate-fade-in">
+    <div class="mb-4 d-flex gap-2">
+        <a href="{{ url_for('company.index') }}" class="btn btn-white shadow-sm rounded-pill px-4 py-2 fw-bold border d-inline-flex align-items-center gap-2">
+            <i class="fas fa-home text-primary"></i> 홈으로
+        </a>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold mb-0"><i class="fas fa-shield-alt text-primary me-2"></i>관리자 메뉴</h3>
+            <p class="text-muted small mt-1 mb-0">기업 등록 및 계정 관리는 관리자만 접근할 수 있습니다.</p>
+        </div>
+    </div>
+
+    <!-- 기업 관리 섹션 -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0"><i class="fas fa-building text-secondary me-2"></i>기업 관리</h5>
+        <button class="btn-premium-action" data-bs-toggle="modal" data-bs-target="#addCompanyModal">
+            <i class="fas fa-plus-circle me-2"></i>신규 기업 등록
+        </button>
+    </div>
+
+    <div class="progress-card p-0 overflow-hidden shadow-sm mb-5">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="small fw-bold text-uppercase" style="background: var(--bg-main);">
+                    <tr>
+                        <th class="ps-4 py-3" style="color: var(--text-muted);">기업명</th>
+                        <th class="py-3" style="color: var(--text-muted);">등록 연도</th>
+                        <th class="py-3 text-center" style="color: var(--text-muted);">연도 추가</th>
+                        <th class="pe-4 py-3 text-end" style="color: var(--text-muted);">기업 삭제</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in companies %}
+                    <tr>
+                        <td class="ps-4 fw-bold">
+                            {{ c.name }}
+                            <button class="btn btn-link btn-sm p-0 text-muted ms-1"
+                                    data-bs-toggle="modal" data-bs-target="#editCompanyModal-{{ c.id }}">
+                                <i class="fas fa-edit small"></i>
+                            </button>
+                        </td>
+                        <td>
+                            {% if c.targets %}
+                                {% for t in c.targets %}
+                                <form action="/company/{{ c.id }}/year/{{ t.year }}/delete" method="post"
+                                      class="d-inline-block me-1 mb-1"
+                                      onsubmit="return confirm('{{ t.year }}년 데이터를 삭제하시겠습니까?')">
+                                    <button type="submit" class="btn btn-sm rounded-pill fw-bold px-2 py-1"
+                                            style="font-size: 0.8rem; background: var(--accent-primary, #3b82f6); color: #fff; border: none;">
+                                        {{ t.year }}년 <i class="fas fa-times ms-1" style="font-size: 0.7rem; opacity: 0.8;"></i>
+                                    </button>
+                                </form>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <form action="/company/{{ c.id }}/year/add" method="post"
+                                class="d-inline-flex gap-2 align-items-center">
+                                <select name="year" class="form-select form-select-sm border rounded-3 fw-bold"
+                                    style="width: 90px; font-size: 0.9rem;">
+                                    {% for y in range(current_year - 1, current_year + 3) %}
+                                    <option value="{{ y }}" {% if y==current_year %}selected{% endif %}>{{ y }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold">
+                                    <i class="fas fa-plus me-1"></i>추가
+                                </button>
+                            </form>
+                        </td>
+                        <td class="pe-4 text-end">
+                            <form action="/company/{{ c.id }}/delete" method="post"
+                                onsubmit="return confirm('해당 기업의 모든 데이터가 삭제되며, 복구할 수 없습니다. 정말 삭제하시겠습니까?')">
+                                <button class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold" type="submit">
+                                    <i class="fas fa-trash-alt me-1"></i>삭제
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-4">등록된 기업이 없습니다.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 계정 관리 섹션 -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0"><i class="fas fa-users-cog text-secondary me-2"></i>계정 관리</h5>
+        <button class="btn-premium-action" data-bs-toggle="modal" data-bs-target="#addUserModal">
+            <i class="fas fa-user-plus me-2"></i>계정 추가
+        </button>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger rounded-3 small py-2 px-3 mb-3">
+        <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+    </div>
+    {% endif %}
+    {% if success %}
+    <div class="alert alert-success rounded-3 small py-2 px-3 mb-3">
+        <i class="fas fa-check-circle me-1"></i>{{ success }}
+    </div>
+    {% endif %}
+
+    <div class="progress-card p-0 overflow-hidden shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="small fw-bold text-uppercase" style="background: var(--bg-main);">
+                    <tr>
+                        <th class="ps-4 py-3" style="color: var(--text-muted);">이름</th>
+                        <th class="py-3" style="color: var(--text-muted);">이메일</th>
+                        <th class="py-3 text-center" style="color: var(--text-muted);">권한</th>
+                        <th class="py-3" style="color: var(--text-muted);">배정 회사</th>
+                        <th class="py-3 text-center" style="color: var(--text-muted);">상태</th>
+                        <th class="py-3 text-center" style="color: var(--text-muted);">최근 로그인</th>
+                        <th class="pe-4 py-3 text-end" style="color: var(--text-muted);">관리</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td class="ps-4 fw-bold">{{ u.user_name }}</td>
+                        <td class="text-muted small">{{ u.user_email }}</td>
+                        <td class="text-center">
+                            {% if u.is_admin %}
+                            <span class="badge bg-primary-subtle text-primary border border-primary px-2 py-1 rounded-pill fw-bold small">
+                                <i class="fas fa-shield-alt me-1"></i>Admin
+                            </span>
+                            {% else %}
+                            <span class="badge border px-2 py-1 rounded-pill fw-bold small" style="color: var(--text-muted); background: var(--bg-main);">
+                                User
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="small">
+                            {% if u.is_admin %}
+                            <span class="text-muted fst-italic">전체 접근</span>
+                            {% else %}
+                            {% set assigned = user_companies.get(u.id, set()) %}
+                            {% if assigned %}
+                                {% for c in companies %}
+                                    {% if c.id in assigned %}
+                                    <span class="badge bg-success-subtle text-success border border-success rounded-pill px-2 py-1 me-1 small">{{ c.name }}</span>
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                            <span class="text-danger small"><i class="fas fa-exclamation-triangle me-1"></i>미배정</span>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if u.effective_end_date %}
+                            <span class="text-danger fw-bold small"><i class="fas fa-ban me-1"></i>비활성</span>
+                            {% else %}
+                            <span class="text-success fw-bold small"><i class="fas fa-check-circle me-1"></i>활성</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center text-muted small">
+                            {{ u.last_login_at[:16] if u.last_login_at else '-' }}
+                        </td>
+                        <td class="pe-4 text-end">
+                            <div class="d-flex gap-2 justify-content-end">
+                                {% if not u.is_admin %}
+                                <button class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold"
+                                        onclick="openCompanyModal('{{ u.id }}', '{{ u.user_name }}')">
+                                    <i class="fas fa-building me-1"></i>회사 배정
+                                </button>
+                                {% endif %}
+                                {% if not u.effective_end_date %}
+                                <form action="{{ url_for('login.admin_deactivate_user', user_id=u.id) }}" method="post"
+                                    onsubmit="return confirm('{{ u.user_name }} 계정을 비활성화하시겠습니까?')">
+                                    <button class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold" type="submit">
+                                        <i class="fas fa-ban me-1"></i>비활성화
+                                    </button>
+                                </form>
+                                {% else %}
+                                <span class="text-muted small">—</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-5">등록된 계정이 없습니다.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 기업 명칭 수정 모달 -->
+{% for c in companies %}
+<div class="modal fade" id="editCompanyModal-{{ c.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header bg-dark text-white p-4">
+                <h5 class="modal-title fw-bold">기업 명칭 수정</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/company/{{ c.id }}/edit" method="post">
+                <div class="modal-body p-4 pt-5">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-muted small">NEW COMPANY NAME</label>
+                        <input type="text" name="name" class="form-control form-control-lg border rounded-4"
+                            value="{{ c.name }}" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="submit" class="btn-premium-action w-100">수정하기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- 신규 기업 등록 모달 -->
+<div class="modal fade" id="addCompanyModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header bg-dark text-white p-4">
+                <h5 class="modal-title fw-bold">신규 기업 등록</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/company/add" method="post">
+                <div class="modal-body p-4 pt-5">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-muted small">COMPANY NAME</label>
+                        <input type="text" name="name" class="form-control form-control-lg border rounded-4"
+                            placeholder="기업명 입력" required autofocus>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="submit" class="btn-premium-action w-100">등록하기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 계정 추가 모달 -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header bg-dark text-white p-4">
+                <h5 class="modal-title fw-bold">신규 계정 추가</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('login.admin_add_user') }}" method="post">
+                <div class="modal-body p-4 pt-5">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted small">이름</label>
+                        <input type="text" name="user_name" class="form-control form-control-lg border rounded-4"
+                               placeholder="홍길동" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted small">이메일</label>
+                        <input type="email" name="user_email" class="form-control form-control-lg border rounded-4"
+                               placeholder="example@company.com" required>
+                    </div>
+                    <div class="form-check ms-1">
+                        <input class="form-check-input" type="checkbox" name="is_admin" id="isAdminCheck">
+                        <label class="form-check-label fw-bold small" for="isAdminCheck">
+                            관리자 권한 부여 (계정 관리 가능)
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="submit" class="btn-premium-action w-100">계정 추가</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 회사 배정 모달 -->
+<div class="modal fade" id="companyModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header bg-dark text-white p-4">
+                <h5 class="modal-title fw-bold"><i class="fas fa-building me-2"></i><span id="companyModalTitle">회사 배정</span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="companyForm" method="post">
+                <div class="modal-body p-4">
+                    <p class="text-muted small mb-3">접근을 허용할 회사를 선택하세요.</p>
+                    {% if companies %}
+                    <div class="d-flex flex-column gap-2">
+                        {% for c in companies %}
+                        <div class="form-check p-3 rounded-3 border" style="background: var(--bg-main);">
+                            <input class="form-check-input" type="checkbox" name="company_ids"
+                                   value="{{ c.id }}" id="company_{{ c.id }}"
+                                   data-company-id="{{ c.id }}">
+                            <label class="form-check-label fw-bold" for="company_{{ c.id }}">
+                                {{ c.name }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-3">등록된 회사가 없습니다.</p>
+                    {% endif %}
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="submit" class="btn-premium-action w-100">저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const userCompanies = {{ user_companies | tojson }};
+
+    function openCompanyModal(userId, userName) {
+        document.getElementById('companyModalTitle').textContent = userName + ' — 회사 배정';
+        document.getElementById('companyForm').action = '/admin/users/' + userId + '/companies';
+
+        const assigned = userCompanies[userId] || [];
+        document.querySelectorAll('[data-company-id]').forEach(cb => {
+            cb.checked = assigned.includes(cb.dataset.companyId);
+        });
+
+        new bootstrap.Modal(document.getElementById('companyModal')).show();
+    }
+</script>
+{% endblock %}

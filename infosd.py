@@ -15,8 +15,10 @@ from migrations.migration_manager import MigrationManager
 _db_path = os.getenv('infosd_DB_PATH', str(_APP_DIR / 'infosd.db'))
 MigrationManager(_db_path).upgrade()
 
+from datetime import timedelta
 from company_routes import bp_company
 from disclosure_routes import bp_disclosure
+from login_routes import bp_login
 
 app = Flask(__name__)
 app.secret_key = os.getenv('infosd_SECRET_KEY', 'infosd-dev-secret-key-change-in-production')
@@ -24,6 +26,7 @@ app.secret_key = os.getenv('infosd_SECRET_KEY', 'infosd-dev-secret-key-change-in
 app.config.update(
     TEMPLATES_AUTO_RELOAD=True,
     MAX_CONTENT_LENGTH=50 * 1024 * 1024,
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
 )
 app.jinja_env.auto_reload = True
 
@@ -59,6 +62,7 @@ def comma_filter(value):
 # Blueprint 등록
 app.register_blueprint(bp_company)
 app.register_blueprint(bp_disclosure)
+app.register_blueprint(bp_login)
 
 
 @app.route('/health')
