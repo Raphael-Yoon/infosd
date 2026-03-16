@@ -475,27 +475,57 @@ class InfosdUnitTest(PlaywrightTestBase):
 
     def test_answer_confirmed_blocked(self, result: UnitTestResult):
         """3. 확정(confirmed) 상태에서 답변 수정 403 차단"""
-        # [SKIP 사유] 이 테스트는 연도 상태가 'confirmed'인 데이터가 있어야 동작한다.
-        # 자동화 테스트 세션(_ensure_session)은 신규 연도(TEST_YEAR=2026)를 생성하므로
-        # 기본적으로 'active' 상태이며, confirmed 상태로의 전환은 수동 조작이 필요하다.
-        # 따라서 자동 테스트 환경에서는 confirmed 연도가 없어 항상 skip 처리된다.
-        # 검증 방법: 수동으로 해당 연도를 confirmed 상태로 전환한 뒤 테스트 단독 실행.
+        import sqlite3 as _sqlite3
+        import os as _os
+
         company_id = self._ensure_session()
         if not company_id:
             result.skip_test("세션 구성 실패")
             return
 
-        resp = self._api("post", "/disclosure/api/answer",
-                         json={"question_id": "Q27", "company_id": company_id,
-                               "year": TEST_YEAR, "value": "confirmed 차단 테스트"})
-        if resp.status_code == 403:
-            result.pass_test("confirmed 상태 수정 시도 시 403 확인")
-        elif resp.status_code == 200:
-            # [SKIP] 현재 세션 연도(TEST_YEAR)가 confirmed 상태가 아님 (active 상태)
-            # 자동화 환경에서는 confirmed 연도 생성이 불가능하므로 항상 이 경로로 skip됨
-            result.skip_test("현재 세션 연도가 confirmed 아님 — 확정 후 수동 재확인 필요")
-        else:
-            result.warn_test(f"예상치 못한 응답: {resp.status_code}")
+        db_path = _os.getenv('infosd_DB_PATH', str(project_root / 'infosd.db'))
+
+        # DB에서 현재 세션 상태 백업
+        conn = _sqlite3.connect(db_path)
+        conn.row_factory = _sqlite3.Row
+        row = conn.execute(
+            'SELECT status FROM isd_sessions WHERE company_id=? AND year=?',
+            (company_id, TEST_YEAR)
+        ).fetchone()
+        original_status = row['status'] if row else None
+        conn.close()
+
+        if original_status is None:
+            result.skip_test("isd_sessions 레코드 없음 — _ensure_session 후 진행률 업데이트 필요")
+            return
+
+        try:
+            # DB 직접 주입: confirmed 상태로 강제 전환
+            conn = _sqlite3.connect(db_path)
+            conn.execute(
+                "UPDATE isd_sessions SET status='confirmed' WHERE company_id=? AND year=?",
+                (company_id, TEST_YEAR)
+            )
+            conn.commit()
+            conn.close()
+
+            # confirmed 상태에서 답변 수정 시도 → 403 기대
+            resp = self._api("post", "/disclosure/api/answer",
+                             json={"question_id": "Q2", "company_id": company_id,
+                                   "year": TEST_YEAR, "value": "999"})
+            if resp.status_code == 403:
+                result.pass_test("confirmed 상태 수정 시도 시 403 차단 확인")
+            else:
+                result.fail_test(f"confirmed 상태임에도 차단 미동작 (status: {resp.status_code})")
+        finally:
+            # 원상복구
+            conn = _sqlite3.connect(db_path)
+            conn.execute(
+                "UPDATE isd_sessions SET status=? WHERE company_id=? AND year=?",
+                (original_status, company_id, TEST_YEAR)
+            )
+            conn.commit()
+            conn.close()
 
     # ─── 4. 증빙 자료 관리 ──────────────────────────────────
 

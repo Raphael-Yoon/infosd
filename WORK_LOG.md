@@ -2,6 +2,27 @@
 
 ---
 
+## 2026-03-17 (v1.11)
+
+### 변경 내역
+- [기능] login_routes.py: 계정 수정(`/admin/users/<id>/edit`) 및 영구 삭제(`/admin/users/<id>/delete`) 라우트 추가
+  - `admin_edit_user`: 이름·이메일·관리자 권한 수정. 이메일 중복 시 오류 반환
+  - `admin_delete_user`: 영구 삭제 (isd_user_company cascade). 본인 계정 삭제 서버 레벨 차단
+- [기능] auth.py: `update_user()`, `delete_user()` 함수 추가
+- [UI] admin_users.html: 계정 관리 열에 편집(✏️) 및 삭제(🗑️) 버튼 추가
+  - 편집: per-user 모달 (이름·이메일·관리자권한 pre-fill)
+  - 삭제: confirm 다이얼로그 + 본인 계정 버튼 미출력 (템플릿 레벨 차단)
+- [테스트] test_unit_infosd.py: `test_answer_confirmed_blocked` SKIP 해소
+  - DB 직접 주입 방식으로 자동화: sqlite3로 isd_sessions.status='confirmed' 강제 설정 후 403 검증, finally에서 원상복구
+
+### 변경 파일
+- `auth.py`: `update_user()`, `delete_user()` 함수 추가
+- `login_routes.py`: import 수정, `admin_edit_user` / `admin_delete_user` 라우트 추가
+- `templates/auth/admin_users.html`: 편집 버튼·모달, 삭제 버튼 추가
+- `test/test_unit_infosd.py`: `test_answer_confirmed_blocked` DB 직접 주입 방식으로 재구현
+
+---
+
 ## 2026-03-17
 
 ### 변경 내역

@@ -198,6 +198,31 @@ def set_user_companies(user_id, company_ids):
         conn.commit()
 
 
+def update_user(user_id, user_name, user_email, is_admin):
+    """사용자 정보 수정 (이름, 이메일, 관리자 여부)"""
+    user_email = user_email.strip().lower()
+    with get_db() as conn:
+        existing = conn.execute(
+            'SELECT id FROM isd_user WHERE user_email = ? AND id != ?', (user_email, user_id)
+        ).fetchone()
+        if existing:
+            return False, "이미 사용 중인 이메일입니다."
+        conn.execute('''
+            UPDATE isd_user SET user_name = ?, user_email = ?, is_admin = ? WHERE id = ?
+        ''', (user_name.strip(), user_email, 1 if is_admin else 0, user_id))
+        conn.commit()
+    return True, "계정 정보가 수정되었습니다."
+
+
+def delete_user(user_id):
+    """사용자 영구 삭제 (isd_user_company 포함 cascade)"""
+    with get_db() as conn:
+        conn.execute('DELETE FROM isd_user_company WHERE user_id = ?', (user_id,))
+        conn.execute('DELETE FROM isd_user WHERE id = ?', (user_id,))
+        conn.commit()
+    return True, "계정이 삭제되었습니다."
+
+
 def can_access_company(company_id):
     """현재 로그인 사용자가 해당 company_id에 접근 가능한지 확인. Admin은 항상 True."""
     if session.get('is_admin'):

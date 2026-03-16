@@ -186,6 +186,11 @@
                                     <i class="fas fa-building me-1"></i>회사 배정
                                 </button>
                                 {% endif %}
+                                <button class="btn btn-outline-secondary btn-sm rounded-pill px-2 fw-bold"
+                                        data-bs-toggle="modal" data-bs-target="#editUserModal-{{ u.id }}"
+                                        title="{{ u.user_name }} 계정 수정">
+                                    <i class="fas fa-edit"></i>
+                                </button>
                                 {% if not u.effective_end_date and u.id != session.user_id %}
                                 <button class="btn btn-outline-warning btn-sm rounded-pill px-2 fw-bold"
                                         onclick="switchToUser('{{ u.id }}', '{{ u.user_name }}')"
@@ -202,6 +207,15 @@
                                 </form>
                                 {% else %}
                                 <span class="text-muted small">—</span>
+                                {% endif %}
+                                {% if u.id != session.user_id %}
+                                <form action="{{ url_for('login.admin_delete_user', user_id=u.id) }}" method="post"
+                                    onsubmit="return confirm('{{ u.user_name }} 계정을 영구 삭제합니다. 이 작업은 복구할 수 없습니다. 계속하시겠습니까?')">
+                                    <button class="btn btn-danger btn-sm rounded-pill px-2 fw-bold" type="submit"
+                                            title="{{ u.user_name }} 계정 영구 삭제">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </form>
                                 {% endif %}
                             </div>
                         </td>
@@ -340,6 +354,44 @@
         </div>
     </div>
 </div>
+
+<!-- 계정 수정 모달 (per-user) -->
+{% for u in users %}
+<div class="modal fade" id="editUserModal-{{ u.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header bg-dark text-white p-4">
+                <h5 class="modal-title fw-bold"><i class="fas fa-user-edit me-2"></i>계정 수정</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('login.admin_edit_user', user_id=u.id) }}" method="post">
+                <div class="modal-body p-4 pt-5">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted small">이름</label>
+                        <input type="text" name="user_name" class="form-control form-control-lg border rounded-4"
+                               value="{{ u.user_name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted small">이메일</label>
+                        <input type="email" name="user_email" class="form-control form-control-lg border rounded-4"
+                               value="{{ u.user_email }}" required>
+                    </div>
+                    <div class="form-check ms-1">
+                        <input class="form-check-input" type="checkbox" name="is_admin"
+                               id="editIsAdmin-{{ u.id }}" {% if u.is_admin %}checked{% endif %}>
+                        <label class="form-check-label fw-bold small" for="editIsAdmin-{{ u.id }}">
+                            관리자 권한 (계정 관리 가능)
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="submit" class="btn-premium-action w-100">수정하기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
 
 {% endblock %}
 

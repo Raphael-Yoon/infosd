@@ -5,7 +5,8 @@ infosd 로그인 라우트
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
 from auth import (send_otp, verify_otp, admin_required, get_all_users,
-                   create_user, deactivate_user, get_user_company_ids, set_user_companies)
+                   create_user, deactivate_user, update_user, delete_user,
+                   get_user_company_ids, set_user_companies)
 
 bp_login = Blueprint('login', __name__)
 
@@ -163,6 +164,68 @@ def admin_add_user():
 def admin_deactivate_user(user_id):
     """사용자 비활성화"""
     deactivate_user(user_id)
+    return redirect(url_for('login.admin_users'))
+
+
+@bp_login.route('/admin/users/<user_id>/edit', methods=['POST'])
+@admin_required
+def admin_edit_user(user_id):
+    """사용자 정보 수정 (이름, 이메일, 관리자 여부)"""
+    user_name = request.form.get('user_name', '').strip()
+    user_email = request.form.get('user_email', '').strip().lower()
+    is_admin = request.form.get('is_admin') == 'on'
+
+    current_year = datetime.now().year
+    from db_config import get_db
+    users = get_all_users()
+    with get_db() as conn:
+        raw_companies = conn.execute('SELECT id, name FROM isd_companies ORDER BY name').fetchall()
+        companies = []
+        for c in raw_companies:
+            targets = [dict(t) for t in conn.execute(
+                'SELECT year FROM isd_targets WHERE company_id = ? ORDER BY year DESC', (c['id'],)
+            ).fetchall()]
+            companies.append({'id': c['id'], 'name': c['name'], 'targets': targets})
+    user_companies = {u['id']: list(get_user_company_ids(u['id'])) for u in users}
+
+    if not user_name or not user_email:
+        return render_template('auth/admin_users.html', users=users, companies=companies,
+                               user_companies=user_companies, current_year=current_year,
+                               error="이름과 이메일을 모두 입력해 주세요.")
+
+    success, message = update_user(user_id, user_name, user_email, is_admin)
+    users = get_all_users()
+    user_companies = {u['id']: list(get_user_company_ids(u['id'])) for u in users}
+    if success:
+        return render_template('auth/admin_users.html', users=users, companies=companies,
+                               user_companies=user_companies, current_year=current_year,
+                               success=message)
+    return render_template('auth/admin_users.html', users=users, companies=companies,
+                           user_companies=user_companies, current_year=current_year,
+                           error=message)
+
+
+@bp_login.route('/admin/users/<user_id>/delete', methods=['POST'])
+@admin_required
+def admin_delete_user(user_id):
+    """사용자 영구 삭제"""
+    if user_id == session.get('user_id'):
+        from db_config import get_db
+        users = get_all_users()
+        with get_db() as conn:
+            raw_companies = conn.execute('SELECT id, name FROM isd_companies ORDER BY name').fetchall()
+            companies = []
+            for c in raw_companies:
+                targets = [dict(t) for t in conn.execute(
+                    'SELECT year FROM isd_targets WHERE company_id = ? ORDER BY year DESC', (c['id'],)
+                ).fetchall()]
+                companies.append({'id': c['id'], 'name': c['name'], 'targets': targets})
+        user_companies = {u['id']: list(get_user_company_ids(u['id'])) for u in users}
+        return render_template('auth/admin_users.html', users=users, companies=companies,
+                               user_companies=user_companies, current_year=datetime.now().year,
+                               error="본인 계정은 삭제할 수 없습니다.")
+
+    delete_user(user_id)
     return redirect(url_for('login.admin_users'))
 
 
