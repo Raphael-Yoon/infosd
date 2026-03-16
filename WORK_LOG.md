@@ -2,6 +2,31 @@
 
 ---
 
+## 2026-03-16
+
+### 변경 내역
+- [기능] login_routes.py: 관리자 계정 전환 기능 구현 (Snowball 동일 방식 포팅)
+  - `POST /admin/switch_user` — 관리자가 다른 사용자 세션으로 전환 (original_admin_id 세션 백업)
+  - `GET /admin/switch_back` — 원래 관리자 계정으로 복귀
+  - `GET /admin/api/users` — 계정 전환 모달용 활성 사용자 목록 API (본인 제외)
+- [기능] login_routes.py: 이전 세션 버그 수정 (v1.08 관련 누적 수정)
+  - admin_add_user / admin_set_user_companies 라우트에 current_year 누락 수정
+  - company_ids 필터링: 빈 문자열 제거 (라디오 "없음" 옵션 처리)
+- [UI] templates/base.html: 네비바 계정 전환 UI 추가
+  - Admin 상태: 이름 클릭 시 계정 전환 모달 오픈 (fa-user-secret 아이콘)
+  - 전환 중: "관리자로 돌아가기" 버튼(노란색) 표시, 관리자 메뉴 숨김
+  - switchToUser() / showUserSwitchModal() JS 함수 전역 등록
+- [UI] templates/auth/admin_users.html: 계정 목록 각 행에 전환 버튼 추가 (활성 계정, 본인 제외)
+- [버그] templates/auth/admin_users.html: set() → [] Jinja2 호환 수정
+- [UI] templates/auth/admin_users.html: 회사 배정 모달 체크박스 → 라디오버튼 (계정당 회사 1개 정책 반영), 전체 행 클릭 가능
+
+### 변경 파일
+- `login_routes.py`: 계정 전환 라우트 3개 추가, current_year 누락 수정, company_ids 필터 추가
+- `templates/base.html`: 네비바 계정 전환 UI 및 JS 추가, 플로팅 매뉴얼 버튼 위치 조정
+- `templates/auth/admin_users.html`: 전환 버튼 추가, set()→[] 수정, 라디오버튼 방식 회사 배정 모달
+
+---
+
 ## 2026-03-12
 
 ### 변경 내역

@@ -156,7 +156,7 @@
                             {% if u.is_admin %}
                             <span class="text-muted fst-italic">전체 접근</span>
                             {% else %}
-                            {% set assigned = user_companies.get(u.id, set()) %}
+                            {% set assigned = user_companies.get(u.id, []) %}
                             {% if assigned %}
                                 {% for c in companies %}
                                     {% if c.id in assigned %}
@@ -184,6 +184,13 @@
                                 <button class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold"
                                         onclick="openCompanyModal('{{ u.id }}', '{{ u.user_name }}')">
                                     <i class="fas fa-building me-1"></i>회사 배정
+                                </button>
+                                {% endif %}
+                                {% if not u.effective_end_date and u.id != session.user_id %}
+                                <button class="btn btn-outline-warning btn-sm rounded-pill px-2 fw-bold"
+                                        onclick="switchToUser('{{ u.id }}', '{{ u.user_name }}')"
+                                        title="{{ u.user_name }} 계정으로 전환">
+                                    <i class="fas fa-user-secret"></i>
                                 </button>
                                 {% endif %}
                                 {% if not u.effective_end_date %}
@@ -308,15 +315,18 @@
                     <p class="text-muted small mb-3">접근을 허용할 회사를 선택하세요.</p>
                     {% if companies %}
                     <div class="d-flex flex-column gap-2">
+                        <label for="company_none" class="form-check p-3 rounded-3 border d-flex align-items-center gap-2" style="background: var(--bg-main); cursor:pointer;">
+                            <input class="form-check-input m-0 flex-shrink-0" type="radio" name="company_ids"
+                                   value="" id="company_none" data-company-id="">
+                            <span class="fw-bold text-muted">없음 (배정 없음)</span>
+                        </label>
                         {% for c in companies %}
-                        <div class="form-check p-3 rounded-3 border" style="background: var(--bg-main);">
-                            <input class="form-check-input" type="checkbox" name="company_ids"
+                        <label for="company_{{ c.id }}" class="form-check p-3 rounded-3 border d-flex align-items-center gap-2" style="background: var(--bg-main); cursor:pointer;">
+                            <input class="form-check-input m-0 flex-shrink-0" type="radio" name="company_ids"
                                    value="{{ c.id }}" id="company_{{ c.id }}"
                                    data-company-id="{{ c.id }}">
-                            <label class="form-check-label fw-bold" for="company_{{ c.id }}">
-                                {{ c.name }}
-                            </label>
-                        </div>
+                            <span class="fw-bold">{{ c.name }}</span>
+                        </label>
                         {% endfor %}
                     </div>
                     {% else %}
@@ -342,8 +352,9 @@
         document.getElementById('companyForm').action = '/admin/users/' + userId + '/companies';
 
         const assigned = userCompanies[userId] || [];
-        document.querySelectorAll('[data-company-id]').forEach(cb => {
-            cb.checked = assigned.includes(cb.dataset.companyId);
+        const assignedId = assigned.length > 0 ? assigned[0] : '';
+        document.querySelectorAll('[data-company-id]').forEach(rb => {
+            rb.checked = (rb.dataset.companyId === assignedId);
         });
 
         new bootstrap.Modal(document.getElementById('companyModal')).show();

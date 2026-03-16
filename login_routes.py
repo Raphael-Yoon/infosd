@@ -3,7 +3,7 @@ infosd 로그인 라우트
 이메일 OTP 인증 기반 로그인/로그아웃
 """
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, session
+from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
 from auth import (send_otp, verify_otp, admin_required, get_all_users,
                    create_user, deactivate_user, get_user_company_ids, set_user_companies)
 
@@ -128,9 +128,18 @@ def admin_add_user():
     user_email = request.form.get('user_email', '').strip().lower()
     is_admin = request.form.get('is_admin') == 'on'
 
+    current_year = datetime.now().year
     if not user_name or not user_email:
         users = get_all_users()
-        return render_template('auth/admin_users.html', users=users, error="이름과 이메일을 모두 입력해 주세요.")
+        from db_config import get_db
+        with get_db() as conn:
+            companies = [dict(r) for r in conn.execute(
+                'SELECT id, name FROM isd_companies ORDER BY name'
+            ).fetchall()]
+        user_companies = {u['id']: list(get_user_company_ids(u['id'])) for u in users}
+        return render_template('auth/admin_users.html', users=users,
+                               companies=companies, user_companies=user_companies,
+                               current_year=current_year, error="이름과 이메일을 모두 입력해 주세요.")
 
     success, message = create_user(user_name, user_email, is_admin)
     from db_config import get_db
@@ -142,9 +151,11 @@ def admin_add_user():
     user_companies = {u['id']: list(get_user_company_ids(u['id'])) for u in users}
     if success:
         return render_template('auth/admin_users.html', users=users,
-                               companies=companies, user_companies=user_companies, success=message)
+                               companies=companies, user_companies=user_companies,
+                               current_year=current_year, success=message)
     return render_template('auth/admin_users.html', users=users,
-                           companies=companies, user_companies=user_companies, error=message)
+                           companies=companies, user_companies=user_companies,
+                           current_year=current_year, error=message)
 
 
 @bp_login.route('/admin/users/<user_id>/deactivate', methods=['POST'])
@@ -159,7 +170,7 @@ def admin_deactivate_user(user_id):
 @admin_required
 def admin_set_user_companies(user_id):
     """사용자-회사 배정 저장"""
-    company_ids = request.form.getlist('company_ids')
+    company_ids = [cid for cid in request.form.getlist('company_ids') if cid]
     set_user_companies(user_id, company_ids)
     from db_config import get_db
     users = get_all_users()
@@ -170,4 +181,83 @@ def admin_set_user_companies(user_id):
     user_companies = {u['id']: list(get_user_company_ids(u['id'])) for u in users}
     return render_template('auth/admin_users.html', users=users,
                            companies=companies, user_companies=user_companies,
+                           current_year=datetime.now().year,
                            success="회사 배정이 저장되었습니다.")
+
+
+# ─── 어드민: 계정 전환 ───────────────────────────
+
+@bp_login.route('/admin/switch_user', methods=['POST'])
+@admin_required
+def admin_switch_user():
+    """관리자가 다른 사용자 계정으로 세션 전환"""
+    target_user_id = request.form.get('target_user_id')
+    if not target_user_id:
+        return jsonify({'success': False, 'message': '대상 사용자를 지정해주세요.'})
+
+    from db_config import get_db
+    with get_db() as conn:
+        row = conn.execute(
+            'SELECT * FROM isd_user WHERE id = ? AND (effective_end_date IS NULL OR effective_end_date > CURRENT_TIMESTAMP)',
+            (target_user_id,)
+        ).fetchone()
+
+    if not row:
+        return jsonify({'success': False, 'message': '유효하지 않은 사용자입니다.'})
+
+    user = dict(row)
+    if 'original_admin_id' not in session:
+        session['original_admin_id'] = session['user_id']
+    session['user_id'] = user['id']
+    session['user_name'] = user['user_name']
+    session['user_email'] = user['user_email']
+    session['is_admin'] = bool(user['is_admin'])
+
+    return jsonify({'success': True, 'message': f"{user['user_name']} 계정으로 전환되었습니다."})
+
+
+@bp_login.route('/admin/switch_back', methods=['GET'])
+def admin_switch_back():
+    """전환된 세션을 원래 관리자 계정으로 복귀"""
+    original_id = session.get('original_admin_id')
+    if not original_id:
+        return redirect(url_for('company.index'))
+
+    from db_config import get_db
+    with get_db() as conn:
+        row = conn.execute('SELECT * FROM isd_user WHERE id = ?', (original_id,)).fetchone()
+
+    if not row:
+        session.clear()
+        return redirect(url_for('login.login_page'))
+
+    user = dict(row)
+    session['user_id'] = user['id']
+    session['user_name'] = user['user_name']
+    session['user_email'] = user['user_email']
+    session['is_admin'] = True
+    session.pop('original_admin_id', None)
+
+    return redirect(url_for('company.index'))
+
+
+@bp_login.route('/admin/api/users', methods=['GET'])
+@admin_required
+def admin_api_users():
+    """계정 전환 모달용 — 활성 사용자 목록 반환"""
+    from db_config import get_db
+    current_id = session.get('user_id')
+    with get_db() as conn:
+        rows = conn.execute('''
+            SELECT u.id, u.user_name, u.user_email, u.is_admin,
+                   c.name as company_name
+            FROM isd_user u
+            LEFT JOIN isd_user_company uc ON u.id = uc.user_id
+            LEFT JOIN isd_companies c ON uc.company_id = c.id
+            WHERE (u.effective_end_date IS NULL OR u.effective_end_date > CURRENT_TIMESTAMP)
+              AND u.id != ?
+            ORDER BY u.is_admin ASC, u.user_name
+        ''', (current_id,)).fetchall()
+        users = [dict(r) for r in rows]
+
+    return jsonify({'success': True, 'users': users})
