@@ -303,6 +303,49 @@ class InfosdUnitTest(PlaywrightTestBase):
         else:
             result.fail_test(f"카테고리 카드 수 부족 ({count}개, 최소 4개 필요)")
 
+    def test_dashboard_card_progress_consistency(self, result: UnitTestResult):
+        """2. 대시보드 카드 done/total 수치와 뱃지(완료/진행/미착수) 일치 검증"""
+        if not self._ensure_session():
+            result.skip_test("세션 구성 실패")
+            return
+
+        self.navigate_to("/disclosure/")
+        self.page.wait_for_load_state("domcontentloaded")
+
+        cards = self.page.locator(".category-card").all()
+        if not cards:
+            result.skip_test("카테고리 카드 없음")
+            return
+
+        mismatches = []
+        for card in cards:
+            stats_text = card.locator(".category-stats").text_content() or ""  # e.g. "8/11"
+            badge_text = card.locator(".category-badge").text_content() or ""  # 완료/진행/미착수
+
+            parts = stats_text.strip().split("/")
+            if len(parts) != 2:
+                continue
+            try:
+                done, total = int(parts[0].strip()), int(parts[1].strip())
+            except ValueError:
+                continue
+
+            rate = (done / total * 100) if total > 0 else 0
+            if rate == 100:
+                expected_badge = "완료"
+            elif rate > 0:
+                expected_badge = "진행"
+            else:
+                expected_badge = "미착수"
+
+            if expected_badge not in badge_text:
+                mismatches.append(f"{stats_text.strip()} → 뱃지 '{badge_text.strip()}' (기대: '{expected_badge}')")
+
+        if mismatches:
+            result.fail_test(f"카드 수치-뱃지 불일치 {len(mismatches)}건: {'; '.join(mismatches)}")
+        else:
+            result.pass_test(f"전체 {len(cards)}개 카드 done/total ↔ 뱃지 일치 확인")
+
     def test_dashboard_category_navigation(self, result: UnitTestResult):
         """2. 카테고리 카드 클릭 → 작업 화면 이동"""
         if not self._ensure_session():
@@ -1113,6 +1156,7 @@ def run_tests():
             runner.test_company_delete,
             runner.test_session_select,
             runner.test_dashboard_render,
+            runner.test_dashboard_card_progress_consistency,
             runner.test_dashboard_category_navigation,
             runner.test_answer_yes_no,
             runner.test_answer_dependent_show,

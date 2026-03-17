@@ -390,6 +390,36 @@ def dashboard():
         ).fetchall()}
 
         cat_list = _calc_cat_progress(all_questions, questions_dict, answers)
+
+        # 카테고리별 증빙 진행률 반영 (work() 화면과 동일 기준)
+        ev_questions_all = conn.execute(
+            'SELECT id, type, category_id FROM isd_questions WHERE evidence_list IS NOT NULL'
+        ).fetchall()
+        uploaded_ids = {r['question_id'] for r in conn.execute(
+            'SELECT DISTINCT question_id FROM isd_evidence WHERE company_id=? AND year=?',
+            (company_id, year)
+        ).fetchall()}
+        for cat in cat_list:
+            ev_req, ev_done_cat = 0, 0
+            for eq in ev_questions_all:
+                if eq['category_id'] != cat['id']:
+                    continue
+                if eq['id'] not in answers or answers[eq['id']] in (None, ''):
+                    continue
+                if eq['type'] == 'number':
+                    try:
+                        if float(str(answers.get(eq['id'], '0') or '0').replace(',', '')) == 0:
+                            continue
+                    except ValueError:
+                        pass
+                ev_req += 1
+                if eq['id'] in uploaded_ids:
+                    ev_done_cat += 1
+            if ev_req > 0:
+                cat['total'] += ev_req
+                cat['done'] += ev_done_cat
+                cat['rate'] = int((cat['done'] / cat['total']) * 100) if cat['total'] > 0 else 0
+
         total_q = sum(c['total'] for c in cat_list)
         total_done = sum(c['done'] for c in cat_list)
         ev_required, ev_done = _calc_evidence_progress(conn, company_id, year, answers)

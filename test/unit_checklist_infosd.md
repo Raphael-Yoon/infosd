@@ -13,6 +13,7 @@
 
 - [ ] **test_session_select**: 회사+연도 선택 후 대시보드 페이지 진입 확인
 - [ ] **test_dashboard_render**: 4개 카테고리 카드 및 진행률 렌더링 확인
+- [ ] **test_dashboard_card_progress_consistency**: 카드 done/total 수치와 뱃지(완료/진행/미착수) 일치 확인 (증빙 반영 기준)
 - [ ] **test_dashboard_category_navigation**: 카테고리 카드 클릭 → 작업 화면(work) 이동 확인
 
 ## 3. 답변 저장 및 검증 (핵심)
