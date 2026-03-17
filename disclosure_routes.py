@@ -472,6 +472,35 @@ def work():
 
         sidebar_categories = _calc_cat_progress(all_questions, questions_dict, answers)
 
+        # 카테고리별 증빙 진행률 반영
+        ev_questions_all = conn.execute(
+            'SELECT id, type, category_id FROM isd_questions WHERE evidence_list IS NOT NULL'
+        ).fetchall()
+        uploaded_ids = {r['question_id'] for r in conn.execute(
+            'SELECT DISTINCT question_id FROM isd_evidence WHERE company_id=? AND year=?',
+            (company_id, year)
+        ).fetchall()}
+        for cat in sidebar_categories:
+            ev_req, ev_done = 0, 0
+            for eq in ev_questions_all:
+                if eq['category_id'] != cat['id']:
+                    continue
+                if eq['id'] not in answers or answers[eq['id']] in (None, ''):
+                    continue
+                if eq['type'] == 'number':
+                    try:
+                        if float(str(answers.get(eq['id'], '0') or '0').replace(',', '')) == 0:
+                            continue
+                    except ValueError:
+                        pass
+                ev_req += 1
+                if eq['id'] in uploaded_ids:
+                    ev_done += 1
+            if ev_req > 0:
+                total_steps = cat['total'] + ev_req
+                done_steps = cat['done'] + ev_done
+                cat['rate'] = int((done_steps / total_steps) * 100) if total_steps > 0 else 0
+
         current_category_name = next((c['name'] for c in sidebar_categories if c['id'] == category_id), "Unknown")
         
         # 전체 진행률 가져오기
