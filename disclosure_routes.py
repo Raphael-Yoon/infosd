@@ -158,8 +158,11 @@ def _update_session_progress(conn, company_id, year):
             elif _is_question_skipped(q, questions_dict, answers):
                 answered += 1
 
-        rate = round((answered / total) * 100) if total > 0 else 0
-        
+        ev_required, ev_done = _calc_evidence_progress(conn, company_id, year, answers)
+        total_steps = total + ev_required
+        done_steps = answered + ev_done
+        rate = round((done_steps / total_steps) * 100) if total_steps > 0 else 0
+
         # 현재 세션의 상태 확인 (이미 확정된 경우 유지)
         existing_status = None
         existing_row = conn.execute(
@@ -277,6 +280,39 @@ def _build_evidence_map(conn, company_id, year):
     return evidence_map
 
 
+def _calc_evidence_progress(conn, company_id, year, answers=None):
+    """증빙 필수 항목의 (required, done) 반환. required = 업로드 필요한 항목 수, done = 업로드 완료 수"""
+    ev_questions = conn.execute(
+        'SELECT id, type FROM isd_questions WHERE evidence_list IS NOT NULL'
+    ).fetchall()
+    if not ev_questions:
+        return 0, 0
+    if answers is None:
+        answers = {r['question_id']: r['value'] for r in conn.execute(
+            'SELECT question_id, value FROM isd_answers WHERE company_id=? AND year=? AND deleted_at IS NULL',
+            (company_id, year)
+        ).fetchall()}
+    uploaded_ids = {r['question_id'] for r in conn.execute(
+        'SELECT DISTINCT question_id FROM isd_evidence WHERE company_id=? AND year=?',
+        (company_id, year)
+    ).fetchall()}
+    required, done = 0, 0
+    for q in ev_questions:
+        if q['id'] not in answers or answers[q['id']] in (None, ''):
+            continue
+        if q['type'] == 'number':
+            try:
+                val = float(str(answers.get(q['id'], '0') or '0').replace(',', ''))
+                if val == 0:
+                    continue
+            except ValueError:
+                pass
+        required += 1
+        if q['id'] in uploaded_ids:
+            done += 1
+    return required, done
+
+
 def _parse_options(questions):
     """questions 리스트의 options 필드를 JSON 파싱하여 options_list 주입"""
     for q in questions:
@@ -356,7 +392,9 @@ def dashboard():
         cat_list = _calc_cat_progress(all_questions, questions_dict, answers)
         total_q = sum(c['total'] for c in cat_list)
         total_done = sum(c['done'] for c in cat_list)
-        overall = int((total_done / total_q) * 100) if total_q > 0 else 0
+        ev_required, ev_done = _calc_evidence_progress(conn, company_id, year, answers)
+        total_steps = total_q + ev_required
+        overall = int(((total_done + ev_done) / total_steps) * 100) if total_steps > 0 else 0
 
         # 투자 및 인력 비율 계산
         ratios = _calculate_ratios(conn, company_id, year, answers)
@@ -844,7 +882,9 @@ def review():
         cat_progress = _calc_cat_progress(all_questions, questions_dict, answers)
         total_q = sum(c['total'] for c in cat_progress)
         total_done = sum(c['done'] for c in cat_progress)
-        overall = round((total_done / total_q) * 100) if total_q > 0 else 0
+        ev_required, ev_done = _calc_evidence_progress(conn, company_id, year, answers)
+        total_steps = total_q + ev_required
+        overall = round(((total_done + ev_done) / total_steps) * 100) if total_steps > 0 else 0
 
     return render_template('disclosure/review.html',
                            company=dict(company), year=year,
@@ -948,8 +988,8 @@ def confirm_disclosure():
             'SELECT completion_rate, status FROM isd_sessions WHERE company_id=? AND year=?', (company_id, year)
         ).fetchone()
 
-        if not session_row or session_row['status'] != 'submitted':
-            flash('검토 요청 완료 후 확정할 수 있습니다.', 'warning')
+        if not session_row or session_row['status'] == 'confirmed':
+            flash('이미 확정된 공시입니다.', 'info')
             return redirect(url_for('disclosure.review'))
 
         if session_row['completion_rate'] < 100:

@@ -45,16 +45,10 @@
         <button class="btn btn-premium-action px-4 py-2 rounded-pill shadow-sm fw-bold" onclick="alert('공시 자료 생성 기능을 준비 중입니다. 곧 제공될 예정입니다.')">
             <i class="fas fa-file-export me-2"></i>공시 자료 생성
         </button>
-        {% elif session and session.status == 'submitted' %}
+        {% else %}
         <form action="/disclosure/confirm" method="post" onsubmit="return confirm('최종적으로 공시 자료를 확정하시겠습니까? 확정 후에는 내용 수정이 제한됩니다.')">
             <button type="submit" class="btn btn-premium-action px-4 py-2 rounded-pill shadow-sm fw-bold" {% if overall < 100 %}disabled title="100% 작성 시 가능"{% endif %}>
                 <i class="fas fa-lock me-2"></i>공시 자료 확정 (Confirm)
-            </button>
-        </form>
-        {% else %}
-        <form action="/disclosure/submit" method="post" onsubmit="return confirm('작성된 내용을 바탕으로 검토 요청을 진행하시겠습니까?')">
-            <button type="submit" class="btn btn-primary px-4 py-2 rounded-pill shadow-sm fw-bold" {% if overall < 100 %}disabled title="100% 작성 시 가능"{% endif %} style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none;">
-                <i class="fas fa-paper-plane me-2"></i>검토 요청 (Submit)
             </button>
         </form>
         {% endif %}
@@ -102,7 +96,7 @@
                 {% for q_id, q in questions.items() %}
                 {% if q.is_active and answers.get(q_id) != 'N/A' %}
                 <tr
-                    class="{% if q_id in answers %}border-start border-4 border-success{% else %}border-start border-4 border-warning{% endif %}">
+                    class="{% if q_id not in answers %}border-start border-4 border-danger{% elif q.evidence_list and not (q_id in evidence and evidence[q_id]) %}border-start border-4 border-warning{% else %}border-start border-4 border-success{% endif %}">
                     <td class="ps-4" style="padding-left: {{ 1.5 + (q.level - 1) * 1.25 }}rem !important;">
                         <span class="badge border px-2 py-1" style="background: var(--bg-main); color: var(--text-muted);">{{ q.display_number or q_id }}</span>
                     </td>
@@ -152,7 +146,9 @@
                             </div>
                         {% endif %}
                         {% else %}
-                        <div class="text-danger small fw-bold"><i class="fas fa-times-circle me-1"></i> 미작성</div>
+                        <a href="/disclosure/work?category={{ q.category_id }}#card-{{ q_id }}" class="text-danger small fw-bold text-decoration-none">
+                            <i class="fas fa-times-circle me-1"></i> 미작성
+                        </a>
                         {% endif %}
                     </td>
                     <td class="text-center">
@@ -162,6 +158,10 @@
                             <i class="fas fa-search me-1"></i> {{ ev.file_name }}
                         </a>
                         {% endfor %}
+                        {% elif q.evidence_list and q_id in answers %}
+                        <a href="/disclosure/work?category={{ q.category_id }}#ev-section-{{ q_id }}" class="badge px-2 py-1 fw-bold text-decoration-none" style="background: #f59e0b; color: #1a1a1a; border: 1px solid #d97706;">
+                            <i class="fas fa-exclamation-triangle me-1"></i> 증빙 필요
+                        </a>
                         {% else %}
                         <span class="text-muted small opacity-50">-</span>
                         {% endif %}

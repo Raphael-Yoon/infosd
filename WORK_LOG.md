@@ -2,6 +2,33 @@
 
 ---
 
+## 2026-03-17 (v1.12)
+
+### 변경 내역
+- [기능] 공시 확정 흐름 단순화: 검토 요청(submit) 단계 제거, draft → confirmed 직접 확정 가능
+  - `disclosure_routes.py`: `confirm_disclosure` 조건을 `status != 'submitted'` → `status == 'confirmed'` 로 변경 (draft/submitted 모두 확정 허용)
+  - `review.html`: submitted 브랜치 제거, else(draft)에서 바로 `/disclosure/confirm` 폼 노출
+  - `dashboard.html`: submitted 브랜치 제거, `overall == 100` 버튼 "검토 요청하기" → "확정하기"
+- [UI] dashboard.html: submitted 상태 주황 배너 및 뱃지 제거, 100% 완료 뱃지 "작성 완료 (검토 요청 대기)" → "작성 완료"
+- [기능] 진행률 계산에 증빙 업로드 반영: 답변 완료만으로 100% 달성 불가, 필수 증빙 업로드 완료 시 100%
+  - `_calc_evidence_progress()` 헬퍼 함수 추가
+  - `_update_session_progress()`: DB `completion_rate` 계산에 증빙 반영
+  - `dashboard()`, `review()` view: `overall` 계산에 증빙 반영
+- [UI] review.html: 미작성/증빙미업로드 항목 시각 강조
+  - 행 테두리: 미작성 → 빨간색, 증빙 필요 → 주황색, 완료 → 초록색
+  - 증빙 셀: 미업로드 시 "증빙 필요" 경고 배지 (노란 고정색, 다크모드 호환)
+  - 미입력 항목은 증빙 배지 미표시 (답변 완료 후에만 표시)
+- [UX] review.html: 미작성/증빙필요 클릭 시 작업 페이지로 이동
+  - "미작성" 클릭 → `/disclosure/work?category=X#card-Q번호`
+  - "증빙 필요" 클릭 → `/disclosure/work?category=X#ev-section-Q번호`
+
+### 변경 파일
+- `disclosure_routes.py`: `_calc_evidence_progress()` 추가, `confirm_disclosure` 조건 완화, 진행률 3곳 수정
+- `templates/disclosure/dashboard.html`: submitted 흐름 제거, 뱃지·버튼 문구 수정
+- `templates/disclosure/review.html`: 확정 버튼 단순화, 행 색상·증빙 배지·클릭 링크 추가
+
+---
+
 ## 2026-03-17 (v1.11)
 
 ### 변경 내역
