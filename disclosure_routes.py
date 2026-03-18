@@ -422,21 +422,23 @@ def dashboard():
 
         total_q = sum(c['total'] for c in cat_list)
         total_done = sum(c['done'] for c in cat_list)
-        ev_required, ev_done = _calc_evidence_progress(conn, company_id, year, answers)
-        total_steps = total_q + ev_required
-        overall = int(((total_done + ev_done) / total_steps) * 100) if total_steps > 0 else 0
+        overall = int((total_done / total_q) * 100) if total_q > 0 else 0
 
         # 투자 및 인력 비율 계산
         ratios = _calculate_ratios(conn, company_id, year, answers)
         
-        # 보유 인증 건수 계산 (Category 3 질문 중 YES인 항목 수 또는 증빙 수)
-        # 여기서는 단순하게 Q16이 YES이거나 관련 항목에 답변이 있는 경우 등으로 계산할 수 있으나,
-        # 일단 Category 3 (ID: 3)에 해당하는 질문들 중 답변이 있는 항목 수를 건수로 표시
+        # 보유 인증 건수: Q16(인증 보유 현황) 테이블의 실제 행 수
         cert_count = 0
-        cat3_questions = [q['id'] for q in all_questions if q['category_id'] == 3 and q['type'] != 'group']
-        for qid in cat3_questions:
-            if qid in answers and answers[qid] not in (None, '', 'NO', 'N/A'):
-                cert_count += 1
+        if answers.get('Q16') and answers.get('Q15') not in (None, '', 'NO'):
+            try:
+                cert_rows = json.loads(answers['Q16'])
+                if isinstance(cert_rows, list):
+                    cert_count = sum(
+                        1 for row in cert_rows
+                        if any(v for v in row.values() if str(v).strip())
+                    )
+            except (json.JSONDecodeError, TypeError):
+                cert_count = 0
         # 세션 정보 조회
         session_info = conn.execute(
             'SELECT * FROM isd_sessions WHERE company_id=? AND year=?', (company_id, year)
@@ -827,7 +829,7 @@ def serve_evidence(company_id, year, filename):
     original_filename = filename
     with get_db() as conn:
         ev = conn.execute(
-            'SELECT file_name FROM ipd_evidence WHERE file_url=?', (file_url,)
+            'SELECT file_name FROM isd_evidence WHERE file_url=?', (file_url,)
         ).fetchone()
         if ev and ev['file_name']:
             original_filename = ev['file_name']
@@ -850,17 +852,17 @@ def history_view(company_id, year):
     if not can_access_company(company_id):
         abort(403)
     with get_db() as conn:
-        company = conn.execute('SELECT name FROM ipd_companies WHERE id=?', (company_id,)).fetchone()
+        company = conn.execute('SELECT name FROM isd_companies WHERE id=?', (company_id,)).fetchone()
         if not company:
             flash('회사를 찾을 수 없습니다.', 'error')
             return redirect(url_for('company.index'))
 
         # 질문 메타데이터와 조인하여 이력 역순 조회
         rows = conn.execute('''
-            SELECT h.changed_at, h.changed_by, h.old_value, h.new_value, 
+            SELECT h.changed_at, h.changed_by, h.old_value, h.new_value,
                    q.type as q_type, q.text as q_text, q.display_number
-            FROM ipd_answer_history h
-            LEFT JOIN ipd_questions q ON h.question_id = q.id
+            FROM isd_answer_history h
+            LEFT JOIN isd_questions q ON h.question_id = q.id
             WHERE h.company_id = ? AND h.year = ?
             ORDER BY h.changed_at DESC
         ''', (company_id, year)).fetchall()

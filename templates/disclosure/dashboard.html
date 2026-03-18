@@ -72,7 +72,7 @@
                 </a>
                 {% else %}
                 <a href="/disclosure/review" class="btn btn-white fw-bold px-4 py-2 rounded-pill shadow-sm border" style="color: var(--text-main);">
-                    전체 작성 내용 검토 <i class="fas fa-search ms-2 text-primary"></i>
+                    최종 검토 <i class="fas fa-search ms-2 text-primary"></i>
                 </a>
                 {% endif %}
             </div>
@@ -83,7 +83,7 @@
             </div>
         </div>
         <div style="text-align: center; color: var(--text-muted); font-size: 0.95rem; font-weight: 600;">
-            입력 완료: {{ categories|sum(attribute='done') }} / {{ categories|sum(attribute='total') }} 항목
+            완료: {{ categories|sum(attribute='done') }} / {{ categories|sum(attribute='total') }} (답변 + 증빙)
         </div>
     </div>
 

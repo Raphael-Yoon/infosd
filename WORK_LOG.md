@@ -2,6 +2,37 @@
 
 ---
 
+## 2026-03-18 (v1.14)
+
+### 변경 내역
+- [버그] `disclosure_routes.py`: `dashboard()` overall 이중 계산 버그 수정
+  - cat_list에 증빙 반영 후 `_calc_evidence_progress` 재호출로 분모 과다 산정되던 문제 제거
+  - `overall = int((total_done / total_q) * 100)` 단일 공식으로 통일
+- [버그] `disclosure_routes.py`: `cert_count` 계산 기준 수정
+  - 기존: Q16 답변 존재 여부(0 or 1)
+  - 변경: Q16 테이블 JSON 파싱 후 실제 행 수 집계 (Q15=YES 조건 유지)
+- [버그] `disclosure_routes.py`: `history_view()`, `serve_evidence()` 테이블명 수정
+  - `ipd_companies` → `isd_companies`
+  - `ipd_answer_history` → `isd_answer_history`
+  - `ipd_questions` → `isd_questions`
+  - `ipd_evidence` → `isd_evidence`
+- [UI] `templates/disclosure/dashboard.html`: "완료: X/Y (답변 + 증빙)" 텍스트 통일
+- [UI] `templates/disclosure/dashboard.html`, `work.html`: 메뉴명 "최종 검토"로 통일
+  - "전체 작성 내용 검토" → "최종 검토"
+  - "최종 리뷰" → "최종 검토"
+- [운영] `CLAUDE.md`: 팀 운영 규칙 업데이트
+  - '샘' 호칭 전면 제거, 군 계급 기반 호칭 체계 명문화
+  - 위계질서 반영: 정래훈(선임 병장) > 이태욱(병장) > 양필조·임태준(상병) > 김종규(일병)
+  - 계급별 말투 규칙 테이블 추가
+
+### 변경 파일
+- `disclosure_routes.py`: overall 이중계산 버그 수정, cert_count Q16 행 수 기준으로 수정, ipd_ → isd_ 테이블명 4곳 수정
+- `templates/disclosure/dashboard.html`: 진행률 텍스트 수정, "최종 검토" 텍스트 통일
+- `templates/disclosure/work.html`: "최종 검토" 텍스트 통일
+- `CLAUDE.md`: 호칭 체계 및 위계질서 전면 업데이트
+
+---
+
 ## 2026-03-17 (v1.13)
 
 ### 변경 내역
