@@ -72,6 +72,29 @@ def _is_yes(value):
     return str(value).strip().upper() in YES_VALUES
 
 
+def _get_none_hidden_ids(questions_with_options, answers):
+    """none_hides 설정을 가진 테이블 질문 중 모든 행이 해당없음인 경우, 숨겨지는 질문 ID 세트 반환"""
+    hidden = set()
+    for q in questions_with_options:
+        opts_str = q.get('options') or ''
+        if 'none_hides' not in opts_str:
+            continue
+        try:
+            opts = json.loads(opts_str)
+            none_hides = opts.get('none_hides')
+            if not none_hides:
+                continue
+            answer = answers.get(q['id'] if isinstance(q, dict) else q['id'])
+            if not answer:
+                continue
+            rows = json.loads(answer)
+            if isinstance(rows, list) and rows and all(r.get('해당없음') == 'Y' for r in rows):
+                hidden.update(none_hides)
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            pass
+    return hidden
+
+
 def _is_question_active(q, questions_dict, answers):
     """질문이 현재 답변 상태에 따라 활성화되어야 하는지 확인 (재귀적)"""
     if q['level'] == 1:
@@ -118,19 +141,16 @@ def _is_question_skipped(q, questions_dict, answers):
 
 
 def _get_all_dependent_ids(conn, question_ids):
-    """재귀적으로 모든 하위 질문 ID 수집"""
-    all_ids = list(question_ids)
+    """재귀적으로 모든 하위 질문 ID 수집 (parent_question_id 역방향 조회)"""
+    all_ids = []
     for q_id in question_ids:
-        row = conn.execute(
-            'SELECT dependent_question_ids FROM isd_questions WHERE id = ?', (q_id,)
-        ).fetchone()
-        if row and row['dependent_question_ids']:
-            try:
-                child_ids = json.loads(row['dependent_question_ids'])
-                if child_ids:
-                    all_ids.extend(_get_all_dependent_ids(conn, child_ids))
-            except (json.JSONDecodeError, TypeError):
-                pass
+        children = conn.execute(
+            'SELECT id FROM isd_questions WHERE parent_question_id = ?', (q_id,)
+        ).fetchall()
+        child_ids = [r['id'] for r in children]
+        all_ids.extend(child_ids)
+        if child_ids:
+            all_ids.extend(_get_all_dependent_ids(conn, child_ids))
     return all_ids
 
 
@@ -147,16 +167,18 @@ def _update_session_progress(conn, company_id, year):
             (company_id, year)
         ).fetchall()}
 
+        none_hidden_ids = _get_none_hidden_ids(all_questions, answers)
         total, answered = 0, 0
         for q in all_questions:
             if q['type'] == 'group':
                 continue
+            # 스킵되거나 none_hides로 숨겨진 질문은 분모에서 제외
+            if _is_question_skipped(q, questions_dict, answers) or q['id'] in none_hidden_ids:
+                continue
             total += 1
             if _is_question_active(q, questions_dict, answers):
-                if q['id'] in answers and answers[q['id']] not in (None, ''):
+                if _is_answer_valid(q['id'], q['type'], answers):
                     answered += 1
-            elif _is_question_skipped(q, questions_dict, answers):
-                answered += 1
 
         ev_required, ev_done = _calc_evidence_progress(conn, company_id, year, answers)
         total_steps = total + ev_required
@@ -200,17 +222,10 @@ def _update_session_progress(conn, company_id, year):
 
 
 def _mark_dependents_na(conn, question_id, company_id, year):
-    """상위 질문 NO 시 하위 질문을 N/A로 표시"""
-    row = conn.execute(
-        'SELECT dependent_question_ids FROM isd_questions WHERE id=?', (question_id,)
-    ).fetchone()
-    if not row or not row['dependent_question_ids']:
+    """상위 질문 NO 시 하위 질문을 N/A로 표시 (parent_question_id 역방향 조회)"""
+    all_dep = _get_all_dependent_ids(conn, [question_id])
+    if not all_dep:
         return
-    try:
-        dep_ids = json.loads(row['dependent_question_ids'])
-    except (json.JSONDecodeError, TypeError):
-        return
-    all_dep = _get_all_dependent_ids(conn, dep_ids)
     for dep_id in all_dep:
         existing = conn.execute(
             'SELECT id FROM isd_answers WHERE question_id=? AND company_id=? AND year=?',
@@ -229,17 +244,10 @@ def _mark_dependents_na(conn, question_id, company_id, year):
 
 
 def _clear_na_from_dependents(conn, question_id, company_id, year):
-    """상위 질문 YES 복귀 시 N/A 답변 삭제"""
-    row = conn.execute(
-        'SELECT dependent_question_ids FROM isd_questions WHERE id=?', (question_id,)
-    ).fetchone()
-    if not row or not row['dependent_question_ids']:
+    """상위 질문 YES 복귀 시 N/A 답변 삭제 (parent_question_id 역방향 조회)"""
+    all_dep = _get_all_dependent_ids(conn, [question_id])
+    if not all_dep:
         return
-    try:
-        dep_ids = json.loads(row['dependent_question_ids'])
-    except (json.JSONDecodeError, TypeError):
-        return
-    all_dep = _get_all_dependent_ids(conn, dep_ids)
     for dep_id in all_dep:
         conn.execute('''
             DELETE FROM isd_answers
@@ -283,7 +291,7 @@ def _build_evidence_map(conn, company_id, year):
 def _calc_evidence_progress(conn, company_id, year, answers=None):
     """증빙 필수 항목의 (required, done) 반환. required = 업로드 필요한 항목 수, done = 업로드 완료 수"""
     ev_questions = conn.execute(
-        'SELECT id, type FROM isd_questions WHERE evidence_list IS NOT NULL'
+        'SELECT id, type, options FROM isd_questions WHERE evidence_list IS NOT NULL'
     ).fetchall()
     if not ev_questions:
         return 0, 0
@@ -292,13 +300,23 @@ def _calc_evidence_progress(conn, company_id, year, answers=None):
             'SELECT question_id, value FROM isd_answers WHERE company_id=? AND year=? AND deleted_at IS NULL',
             (company_id, year)
         ).fetchall()}
+    # 스킵/none_hides 판단을 위해 전체 질문 로드
+    all_qs = [dict(r) for r in conn.execute('SELECT * FROM isd_questions')]
+    questions_dict_full = {q['id']: q for q in all_qs}
+    none_hidden_ids = _get_none_hidden_ids(all_qs, answers)
     uploaded_ids = {r['question_id'] for r in conn.execute(
         'SELECT DISTINCT question_id FROM isd_evidence WHERE company_id=? AND year=?',
         (company_id, year)
     ).fetchall()}
     required, done = 0, 0
     for q in ev_questions:
-        if q['id'] not in answers or answers[q['id']] in (None, ''):
+        if not _is_answer_valid(q['id'], q['type'], answers):
+            continue
+        # 스킵된 질문 및 none_hides로 숨겨진 질문의 증빙 제외
+        q_full = questions_dict_full.get(q['id'])
+        if q_full and _is_question_skipped(q_full, questions_dict_full, answers):
+            continue
+        if q['id'] in none_hidden_ids:
             continue
         if q['type'] == 'number':
             try:
@@ -306,6 +324,14 @@ def _calc_evidence_progress(conn, company_id, year, answers=None):
                 if val == 0:
                     continue
             except ValueError:
+                pass
+        elif q['type'] == 'table':
+            # 테이블 질문이 전체 해당없음이면 증빙 제외
+            try:
+                rows = json.loads(answers[q['id']])
+                if isinstance(rows, list) and rows and all(r.get('해당없음') == 'Y' for r in rows):
+                    continue
+            except (json.JSONDecodeError, TypeError):
                 pass
         required += 1
         if q['id'] in uploaded_ids:
@@ -325,27 +351,90 @@ def _parse_options(questions):
             q['options_list'] = []
 
 
+def _is_answer_valid(q_id, q_type, answers):
+    """답변이 실질적으로 입력된 상태인지 확인.
+    table/checkbox 타입은 유효한 JSON 배열(1개 이상)이어야 함."""
+    val = answers.get(q_id)
+    if val in (None, ''):
+        return False
+    if q_type in ('table', 'checkbox'):
+        try:
+            rows = json.loads(val) if isinstance(val, str) else val
+            return isinstance(rows, list) and len(rows) > 0
+        except (json.JSONDecodeError, TypeError):
+            return False
+    return True
+
+
 def _calc_cat_progress(all_questions, questions_dict, answers):
     """카테고리별 진행률 계산. [{'id', 'name', 'total', 'done', 'rate'}] 반환"""
+    none_hidden_ids = _get_none_hidden_ids(all_questions, answers)
     cat_map = {}
     for q in all_questions:
         if q['type'] == 'group':
+            continue
+        # 스킵되거나 none_hides로 숨겨진 질문은 분모에서 제외
+        if _is_question_skipped(q, questions_dict, answers) or q['id'] in none_hidden_ids:
             continue
         cat_id = q['category_id']
         if cat_id not in cat_map:
             cat_map[cat_id] = {'id': cat_id, 'name': q['category'], 'total': 0, 'done': 0}
         cat_map[cat_id]['total'] += 1
         if _is_question_active(q, questions_dict, answers):
-            if q['id'] in answers and answers[q['id']] not in (None, ''):
+            if _is_answer_valid(q['id'], q['type'], answers):
                 cat_map[cat_id]['done'] += 1
-        elif _is_question_skipped(q, questions_dict, answers):
-            cat_map[cat_id]['done'] += 1
     result = []
     for cat_id in sorted(cat_map):
         c = cat_map[cat_id]
         c['rate'] = int((c['done'] / c['total']) * 100) if c['total'] > 0 else 0
         result.append(c)
     return result
+
+
+def _calc_cat_progress_with_evidence(conn, all_questions, questions_dict, answers, company_id, year):
+    """카테고리별 진행률(증빙 포함) 계산. save_answer / work / dashboard 공통 사용"""
+    cat_list = _calc_cat_progress(all_questions, questions_dict, answers)
+    ev_questions_all = conn.execute(
+        'SELECT id, type, category_id FROM isd_questions WHERE evidence_list IS NOT NULL'
+    ).fetchall()
+    uploaded_ids = {r['question_id'] for r in conn.execute(
+        'SELECT DISTINCT question_id FROM isd_evidence WHERE company_id=? AND year=?',
+        (company_id, year)
+    ).fetchall()}
+    none_hidden_ids = _get_none_hidden_ids(all_questions, answers)
+    for cat in cat_list:
+        ev_req, ev_done = 0, 0
+        for eq in ev_questions_all:
+            if eq['category_id'] != cat['id']:
+                continue
+            if not _is_answer_valid(eq['id'], eq['type'], answers):
+                continue
+            eq_full = questions_dict.get(eq['id'])
+            if eq_full and _is_question_skipped(eq_full, questions_dict, answers):
+                continue
+            if eq['id'] in none_hidden_ids:
+                continue
+            if eq['type'] == 'number':
+                try:
+                    if float(str(answers.get(eq['id'], '0') or '0').replace(',', '')) == 0:
+                        continue
+                except ValueError:
+                    pass
+            elif eq['type'] == 'table':
+                try:
+                    rows = json.loads(answers[eq['id']])
+                    if isinstance(rows, list) and rows and all(r.get('해당없음') == 'Y' for r in rows):
+                        continue
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            ev_req += 1
+            if eq['id'] in uploaded_ids:
+                ev_done += 1
+        if ev_req > 0:
+            total_steps = cat['total'] + ev_req
+            done_steps = cat['done'] + ev_done
+            cat['rate'] = int((done_steps / total_steps) * 100) if total_steps > 0 else 0
+    return cat_list
 
 
 # ============================================================
@@ -389,36 +478,9 @@ def dashboard():
             (company_id, year)
         ).fetchall()}
 
-        cat_list = _calc_cat_progress(all_questions, questions_dict, answers)
-
-        # 카테고리별 증빙 진행률 반영 (work() 화면과 동일 기준)
-        ev_questions_all = conn.execute(
-            'SELECT id, type, category_id FROM isd_questions WHERE evidence_list IS NOT NULL'
-        ).fetchall()
-        uploaded_ids = {r['question_id'] for r in conn.execute(
-            'SELECT DISTINCT question_id FROM isd_evidence WHERE company_id=? AND year=?',
-            (company_id, year)
-        ).fetchall()}
-        for cat in cat_list:
-            ev_req, ev_done_cat = 0, 0
-            for eq in ev_questions_all:
-                if eq['category_id'] != cat['id']:
-                    continue
-                if eq['id'] not in answers or answers[eq['id']] in (None, ''):
-                    continue
-                if eq['type'] == 'number':
-                    try:
-                        if float(str(answers.get(eq['id'], '0') or '0').replace(',', '')) == 0:
-                            continue
-                    except ValueError:
-                        pass
-                ev_req += 1
-                if eq['id'] in uploaded_ids:
-                    ev_done_cat += 1
-            if ev_req > 0:
-                cat['total'] += ev_req
-                cat['done'] += ev_done_cat
-                cat['rate'] = int((cat['done'] / cat['total']) * 100) if cat['total'] > 0 else 0
+        cat_list = _calc_cat_progress_with_evidence(
+            conn, all_questions, questions_dict, answers, company_id, year
+        )
 
         total_q = sum(c['total'] for c in cat_list)
         total_done = sum(c['done'] for c in cat_list)
@@ -502,45 +564,19 @@ def work():
             q['is_skipped'] = _is_question_skipped(q, questions_dict, answers)
             q['unit'] = ('명' if q['id'] in PERSON_UNIT_IDS else '원') if q['type'] == 'number' else ''
 
-        sidebar_categories = _calc_cat_progress(all_questions, questions_dict, answers)
-
-        # 카테고리별 증빙 진행률 반영
-        ev_questions_all = conn.execute(
-            'SELECT id, type, category_id FROM isd_questions WHERE evidence_list IS NOT NULL'
-        ).fetchall()
-        uploaded_ids = {r['question_id'] for r in conn.execute(
-            'SELECT DISTINCT question_id FROM isd_evidence WHERE company_id=? AND year=?',
-            (company_id, year)
-        ).fetchall()}
-        for cat in sidebar_categories:
-            ev_req, ev_done = 0, 0
-            for eq in ev_questions_all:
-                if eq['category_id'] != cat['id']:
-                    continue
-                if eq['id'] not in answers or answers[eq['id']] in (None, ''):
-                    continue
-                if eq['type'] == 'number':
-                    try:
-                        if float(str(answers.get(eq['id'], '0') or '0').replace(',', '')) == 0:
-                            continue
-                    except ValueError:
-                        pass
-                ev_req += 1
-                if eq['id'] in uploaded_ids:
-                    ev_done += 1
-            if ev_req > 0:
-                total_steps = cat['total'] + ev_req
-                done_steps = cat['done'] + ev_done
-                cat['rate'] = int((done_steps / total_steps) * 100) if total_steps > 0 else 0
+        sidebar_categories = _calc_cat_progress_with_evidence(
+            conn, all_questions, questions_dict, answers, company_id, year
+        )
 
         current_category_name = next((c['name'] for c in sidebar_categories if c['id'] == category_id), "Unknown")
         
-        # 전체 진행률 가져오기
+        # 전체 진행률 및 확정 상태 가져오기
         isd_session = conn.execute(
-            'SELECT completion_rate FROM isd_sessions WHERE company_id=? AND year=?',
+            'SELECT completion_rate, status FROM isd_sessions WHERE company_id=? AND year=?',
             (company_id, year)
         ).fetchone()
         overall_progress = isd_session['completion_rate'] if isd_session else 0
+        is_confirmed = isd_session and isd_session['status'] == 'confirmed'
         
         current_cat_stat = next((c for c in sidebar_categories if c['id'] == category_id), None)
         current_progress = current_cat_stat['rate'] if current_cat_stat else 0
@@ -557,12 +593,13 @@ def work():
     return render_template('disclosure/work.html',
                            company=dict(company), year=year,
                            questions=questions, answers=answers, answer_ids=answer_ids,
-                           evidence=evidence_map, 
+                           evidence=evidence_map,
                            sidebar_categories=sidebar_categories,
-                           current_category_id=category_id, 
+                           current_category_id=category_id,
                            current_category_name=current_category_name,
                            current_progress=current_progress,
-                           overall_progress=overall_progress)
+                           overall_progress=overall_progress,
+                           is_confirmed=is_confirmed)
 
 
 # ============================================================
@@ -583,8 +620,16 @@ def save_answer():
         if not all([question_id, company_id, year]):
             return jsonify({'success': False, 'message': '필수 파라미터 누락'}), 400
 
-        # 리스트 값 직렬화
+        # 리스트 값 직렬화 (table: 빈 행 필터링, checkbox: 문자열 배열 그대로 저장)
         if isinstance(value, list):
+            if value and isinstance(value[0], dict):
+                # table 타입: 빈 행 필터링 (해당없음='Y' 행은 의미 있으므로 보존)
+                value = [
+                    row for row in value
+                    if row.get('해당없음') == 'Y'
+                    or any(v not in (None, '', '-') for k, v in row.items() if k not in ('type', '해당없음'))
+                ]
+            # else: checkbox 타입 (문자열 배열) — 필터링 없이 저장
             value = json.dumps(value, ensure_ascii=False)
 
         with get_db() as conn:
@@ -699,7 +744,20 @@ def save_answer():
             conn.commit()
             _update_session_progress(conn, company_id, year)
 
-        return jsonify({'success': True, 'answer_id': answer_id})
+            # 카테고리별 진행률 계산하여 응답에 포함
+            all_questions = [dict(r) for r in conn.execute(
+                'SELECT * FROM isd_questions ORDER BY sort_order'
+            ).fetchall()]
+            questions_dict = {q['id']: q for q in all_questions}
+            answers_updated = {r['question_id']: r['value'] for r in conn.execute(
+                'SELECT question_id, value FROM isd_answers WHERE company_id=? AND year=? AND deleted_at IS NULL',
+                (company_id, year)
+            ).fetchall()}
+            cat_progress = _calc_cat_progress_with_evidence(
+                conn, all_questions, questions_dict, answers_updated, company_id, year
+            )
+
+        return jsonify({'success': True, 'answer_id': answer_id, 'cat_progress': cat_progress})
 
     except Exception as e:
         import traceback
@@ -909,9 +967,26 @@ def review():
 
         # options 파싱 + 활성화 상태 주입
         _parse_options(all_questions)
+        none_hidden_ids = _get_none_hidden_ids(all_questions, answers)
         for q in all_questions:
             q['is_active'] = _is_question_active(q, questions_dict, answers)
             q['is_skipped'] = _is_question_skipped(q, questions_dict, answers)
+            q['is_none_hidden'] = q['id'] in none_hidden_ids
+            # 테이블 컬럼 key → label 매핑
+            q['col_label_map'] = {}
+            if q['type'] == 'table':
+                opts = q.get('options_list')
+                if isinstance(opts, dict) and 'columns' in opts:
+                    q['col_label_map'] = {c['key']: c.get('label', c['key']) for c in opts['columns'] if 'key' in c}
+            # 테이블 타입에서 전체 행이 해당없음인 경우 증빙 불필요 플래그
+            q['is_all_none'] = False
+            if q['type'] == 'table' and q['id'] in answers:
+                try:
+                    rows = json.loads(answers[q['id']]) if isinstance(answers[q['id']], str) else answers[q['id']]
+                    if isinstance(rows, list) and rows and all(r.get('해당없음') == 'Y' for r in rows):
+                        q['is_all_none'] = True
+                except Exception:
+                    pass
 
         # 카테고리별 그룹핑
         categories = {}
@@ -1058,26 +1133,30 @@ def confirm_disclosure():
             return redirect(url_for('disclosure.review'))
 
         # 필수 증빙 검증: 답변 완료 항목 중 증빙 미업로드 항목 차단
-        # (number 타입 항목은 금액이 0인 경우 증빙 불필요)
+        # (skip/none_hidden/해당없음/number 0원 항목 제외)
         req_questions = conn.execute(
             'SELECT id, display_number, type FROM isd_questions WHERE evidence_list IS NOT NULL'
         ).fetchall()
         if req_questions:
-            answered_ids = {r['question_id'] for r in conn.execute(
-                "SELECT question_id FROM isd_answers WHERE company_id=? AND year=? AND status='completed'",
-                (company_id, year)
-            ).fetchall()}
             all_answers = {r['question_id']: r['value'] for r in conn.execute(
                 'SELECT question_id, value FROM isd_answers WHERE company_id=? AND year=? AND deleted_at IS NULL',
                 (company_id, year)
             ).fetchall()}
+            all_qs_full = [dict(r) for r in conn.execute('SELECT * FROM isd_questions').fetchall()]
+            questions_dict_full = {q['id']: q for q in all_qs_full}
+            none_hidden_ids = _get_none_hidden_ids(all_qs_full, all_answers)
             uploaded_ids = {r['question_id'] for r in conn.execute(
                 'SELECT DISTINCT question_id FROM isd_evidence WHERE company_id=? AND year=?',
                 (company_id, year)
             ).fetchall()}
             missing_ev = []
             for q in req_questions:
-                if q['id'] not in answered_ids:
+                if not _is_answer_valid(q['id'], q['type'], all_answers):
+                    continue
+                q_full = questions_dict_full.get(q['id'])
+                if q_full and _is_question_skipped(q_full, questions_dict_full, all_answers):
+                    continue
+                if q['id'] in none_hidden_ids:
                     continue
                 if q['type'] == 'number':
                     try:
@@ -1085,6 +1164,13 @@ def confirm_disclosure():
                         if val == 0:
                             continue
                     except ValueError:
+                        pass
+                elif q['type'] == 'table':
+                    try:
+                        rows = json.loads(all_answers[q['id']])
+                        if isinstance(rows, list) and rows and all(r.get('해당없음') == 'Y' for r in rows):
+                            continue
+                    except (json.JSONDecodeError, TypeError):
                         pass
                 if q['id'] not in uploaded_ids:
                     missing_ev.append(q['display_number'])

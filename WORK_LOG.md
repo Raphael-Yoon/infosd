@@ -2,6 +2,41 @@
 
 ---
 
+## 2026-03-18 (v1.15)
+
+### 변경 내역
+- [테스트] `test/test_unit_infosd.py`: 37개 유닛 테스트 전면 재작성 및 100% 통과 달성
+  - `PlaywrightTestBase._api()` 추가: 브라우저 쿠키 추출 후 `requests` HTTP 호출 (인증 유지)
+  - `_login()` 추가: `/login/local` OTP-없는 로컬 어드민 로그인
+  - `_ensure_session()` 재작성: 매 호출 시 `/disclosure/select/{id}/{year}` 네비게이션으로 Flask session 강제 갱신
+  - 회사·연도 관리 테스트 6개: 가상 REST API → 실제 form POST 엔드포인트로 교체
+  - `test_validation_b_gt_a`: Q4/Q5/Q6 초기화 후 Q2 저장 (이전 테스트 데이터 간섭 방지)
+  - `test_validation_personnel`: Q28 초기화 후 Q10 저장 (동일 이유)
+  - `test_evidence_section_toggle_by_value`: `dispatch_event("input")` → `dispatch_event("change")`
+  - 신규 테스트 4개 추가: none_hidden(Q29), checkbox(Q20), confirmed 잠금, evidence 섹션 토글
+- [테스트] `test/unit_checklist_infosd.md`: 시나리오 13~15 추가 (none_hidden, checkbox, confirmed 잠금)
+- [버그] `disclosure_routes.py`: `save_answer` table 빈 행 필터 — `해당없음='Y'` 행 보존
+  - 기존: 모든 필드가 비어있는 행 제거 → `해당없음=Y` 행도 제거되어 `[]` 저장
+  - 수정: `row.get('해당없음') == 'Y'` 행은 무조건 보존
+  - 영향: `_get_none_hidden_ids` Q29 none_hidden 처리 정상화
+- [버그] `disclosure_routes.py`: `save_answer` checkbox 타입 `str.items()` 오류 수정
+  - 기존: `isinstance(value, list)` 후 모든 요소에 `.items()` 호출 → checkbox(문자열 배열)에서 500
+  - 수정: `isinstance(value[0], dict)` 체크 추가 — table 타입만 빈 행 필터링 적용
+- [버그] `disclosure_routes.py`: `_mark_dependents_na` / `_clear_na_from_dependents` 미작동 수정
+  - 원인: `dependent_question_ids` 필드가 DB 전체에서 NULL — 함수가 사실상 NOP이었음
+  - 수정: `parent_question_id` 역방향 조회 방식으로 `_get_all_dependent_ids` 전면 재설계
+  - 영향: Q1=NO 시 Q2 등 하위 질문 자동 N/A 처리 정상화
+- [테스트] `test/playwright_base.py`: `_api()` 헬퍼 메서드 추가
+
+### 변경 파일
+- `disclosure_routes.py`: `_get_all_dependent_ids` 역방향 조회 재설계, `_mark_dependents_na` / `_clear_na_from_dependents` 단순화, `save_answer` 빈 행 필터·checkbox 타입 버그 2건 수정
+- `test/playwright_base.py`: `_api()` 메서드 추가
+- `test/test_unit_infosd.py`: 전면 재작성 (37개 테스트 100% 통과)
+- `test/unit_checklist_infosd.md`: 시나리오 13~15 추가
+- `test/unit_checklist_infosd_result.md`: 최신 테스트 결과 갱신
+
+---
+
 ## 2026-03-18 (v1.14)
 
 ### 변경 내역

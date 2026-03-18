@@ -37,3 +37,4 @@ logs/
 # 임시/테스트 파일
 test_*.py
 *_test.py
+test/screenshots/

@@ -192,6 +192,13 @@ class PlaywrightTestBase:
         if self.browser: self.browser.close()
         if self.playwright: self.playwright.stop()
 
+    # ─── HTTP API 헬퍼 ───────────────────────────────────────
+    def _api(self, method: str, path: str, **kwargs) -> requests.Response:
+        """브라우저 쿠키를 유지한 채 HTTP 요청 수행."""
+        url = f"{self.base_url}{path}"
+        cookies = {c["name"]: c["value"] for c in self.context.cookies()} if self.context else {}
+        return getattr(requests, method.lower())(url, cookies=cookies, **kwargs)
+
     # ─── 페이지 헬퍼 ─────────────────────────────────────────
     def navigate_to(self, path: str = ""):
         url = f"{self.base_url}{path}"
