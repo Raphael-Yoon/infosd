@@ -2,11 +2,37 @@
 infosd 로그인 라우트
 이메일 OTP 인증 기반 로그인/로그아웃
 """
+import hmac
+import hashlib
+import time
+import re
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, current_app
 from auth import (send_otp, verify_otp, admin_required, get_all_users,
                    create_user, deactivate_user, update_user, delete_user,
                    get_user_company_ids, set_user_companies)
+from infosd_mail import send_gmail
+
+_URL_PATTERN = re.compile(r'https?://|www\.', re.IGNORECASE)
+
+
+def _validate_form_token(token, min_seconds=3):
+    """폼 제출 토큰 검증 — 최소 min_seconds초 경과 여부 확인"""
+    if not token:
+        return False
+    try:
+        timestamp_str, sig = token.split('.', 1)
+        secret = current_app.config.get('SECRET_KEY', current_app.secret_key)
+        expected = hmac.new(secret.encode(), timestamp_str.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expected):
+            return False
+        return (int(time.time()) - int(timestamp_str)) >= min_seconds
+    except (ValueError, AttributeError):
+        return False
+
+
+def _contains_url(text):
+    return bool(_URL_PATTERN.search(text or ''))
 
 bp_login = Blueprint('login', __name__)
 
@@ -22,6 +48,53 @@ def login_page():
     if 'user_id' in session:
         return redirect(url_for('company.index'))
     return render_template('auth/login.html', show_local_login=_is_local())
+
+
+@bp_login.route('/contact', methods=['GET', 'POST'])
+def contact():
+    """서비스 문의 페이지 (Contact Us)"""
+    if request.method == 'POST':
+        # Honeypot
+        if request.form.get('website'):
+            return render_template('auth/contact.html', success=True)
+
+        # 폼 제출 시간 검증
+        if not _validate_form_token(request.form.get('form_token')):
+            return render_template('auth/contact.html',
+                                   error='잘못된 요청입니다. 잠시 후 다시 시도해주세요.')
+
+        name = request.form.get('name', '').strip()
+        company_name = request.form.get('company_name', '').strip()
+        email = request.form.get('email', '').strip()
+        message = request.form.get('message', '').strip()
+
+        if not all([name, email, message]):
+            return render_template('auth/contact.html',
+                                   error='이름, 이메일, 문의내용은 필수 입력 항목입니다.',
+                                   name=name, company_name=company_name, email=email, message=message)
+
+        if _contains_url(message):
+            return render_template('auth/contact.html',
+                                   error='문의 내용에 URL을 포함할 수 없습니다.',
+                                   name=name, company_name=company_name, email=email, message=message)
+
+        subject = f'[정보보호공시 시스템] 문의: {name}'
+        body = f'이름: {name}\n소속/회사: {company_name}\n이메일: {email}\n\n문의내용:\n{message}'
+        try:
+            send_gmail(to='snowball1566@gmail.com', subject=subject, body=body)
+            return render_template('auth/contact.html', success=True)
+        except Exception as e:
+            return render_template('auth/contact.html',
+                                   error=f'전송 중 오류가 발생했습니다: {e}',
+                                   name=name, company_name=company_name, email=email, message=message)
+
+    return render_template('auth/contact.html')
+
+
+@bp_login.route('/tour')
+def tour():
+    """비로그인 사용자용 기능 둘러보기 페이지"""
+    return render_template('auth/tour.html')
 
 
 @bp_login.route('/login/local', methods=['POST'])

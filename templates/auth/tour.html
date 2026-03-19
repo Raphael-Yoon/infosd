@@ -1,0 +1,401 @@
+{% extends 'base.html' %}
+{% block title %}기능 둘러보기 — 정보보호공시 시스템{% endblock %}
+{% block head %}
+<style>
+.tour-card {
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.tour-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1) !important;
+}
+.tour-mockup {
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--bg-main);
+    padding: 14px;
+    font-size: 0.75rem;
+    pointer-events: none;
+    user-select: none;
+}
+.tour-mockup .mock-table { width: 100%; border-collapse: collapse; }
+.tour-mockup .mock-table td {
+    padding: 5px 6px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-main);
+    font-size: 0.72rem;
+}
+.tour-mockup .mock-table tr:last-child td { border-bottom: none; }
+.tour-mockup .mock-badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 20px;
+    font-size: 0.65rem;
+    font-weight: 700;
+}
+.tour-mockup .mock-progress {
+    height: 5px; border-radius: 4px;
+    background: var(--border-color);
+    width: 80px; overflow: hidden;
+    display: inline-block; vertical-align: middle;
+}
+.tour-mockup .mock-progress-bar { height: 100%; border-radius: 4px; background: var(--bs-primary); }
+.tour-mockup .mock-input {
+    width: 100%;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 4px 8px;
+    background: var(--bg-surface);
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    margin-top: 3px;
+}
+.tour-mockup .mock-label {
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.tour-mockup .mock-file-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-main);
+}
+.tour-mockup .mock-file-row:last-child { border-bottom: none; }
+.tour-mockup .mock-alert {
+    border-radius: 6px; padding: 5px 9px;
+    font-size: 0.7rem; margin-top: 6px;
+}
+.tour-mockup .mock-timeline-row {
+    display: flex; gap: 8px; padding: 5px 0;
+    align-items: flex-start;
+    border-bottom: 1px solid var(--border-color);
+}
+.tour-mockup .mock-timeline-row:last-child { border-bottom: none; }
+.tour-mockup .mock-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    margin-top: 4px; flex-shrink: 0;
+}
+.tour-mockup .mock-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px; border-radius: 6px;
+    font-size: 0.72rem; font-weight: 600;
+}
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="text-center animate-fade-in pb-4" style="padding-top: 60px;">
+    <a href="{{ url_for('login.login_page') }}">
+        <img src="{{ url_for('static', filename='images/logos/logo.png') }}"
+             alt="정보보호공시 시스템 로고"
+             class="logo-img"
+             style="max-width: 360px; width: 100%; height: auto;">
+    </a>
+    <p class="text-muted mt-3 mb-1" style="font-size: 1rem;">정보보호 공시 업무의 전 과정을 하나의 시스템에서</p>
+    <p class="text-muted small">카드를 클릭하면 각 기능을 미리 볼 수 있습니다.</p>
+</div>
+
+<div class="max-width-1000 mx-auto px-3 pb-5">
+    <div class="row g-4 mt-2">
+
+        <!-- 1. 기업/연도 관리 -->
+        <div class="col-md-6 col-lg-4">
+            <div class="progress-card p-4 h-100 animate-fade-in tour-card"
+                 onclick="openTour('company')">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="stat-icon-circle bg-primary text-white me-3 mb-0"
+                         style="width: 44px; height: 44px; font-size: 1.1rem; flex-shrink: 0;">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <h6 class="fw-bold mb-0">기업 · 연도 관리</h6>
+                </div>
+                <p class="text-muted small mb-3">복수 기업의 연도별 공시 현황을 한눈에 파악하고, 기업·연도를 등록·삭제합니다.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="badge rounded-pill bg-light text-dark border small">기업 등록/삭제</span>
+                    <span class="badge rounded-pill bg-light text-dark border small">연도 추가</span>
+                    <span class="badge rounded-pill bg-light text-dark border small">진행률 요약</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 공시 항목 작성 -->
+        <div class="col-md-6 col-lg-4">
+            <div class="progress-card p-4 h-100 animate-fade-in tour-card"
+                 onclick="openTour('work')">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="stat-icon-circle bg-success text-white me-3 mb-0"
+                         style="width: 44px; height: 44px; font-size: 1.1rem; flex-shrink: 0;">
+                        <i class="fas fa-edit"></i>
+                    </div>
+                    <h6 class="fw-bold mb-0">공시 항목 작성</h6>
+                </div>
+                <p class="text-muted small mb-3">투자액, 인력, 인증 현황 등 29개 항목을 카테고리별로 입력합니다.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="badge rounded-pill bg-light text-dark border small">29개 항목</span>
+                    <span class="badge rounded-pill bg-light text-dark border small">카테고리 분류</span>
+                    <span class="badge rounded-pill bg-light text-dark border small">항목별 도움말</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. 증빙 파일 첨부 -->
+        <div class="col-md-6 col-lg-4">
+            <div class="progress-card p-4 h-100 animate-fade-in tour-card"
+                 onclick="openTour('evidence')">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="stat-icon-circle bg-warning text-white me-3 mb-0"
+                         style="width: 44px; height: 44px; font-size: 1.1rem; flex-shrink: 0;">
+                        <i class="fas fa-paperclip"></i>
+                    </div>
+                    <h6 class="fw-bold mb-0">증빙 파일 첨부</h6>
+                </div>
+                <p class="text-muted small mb-3">각 공시 항목에 이미지, PDF, 문서 등 근거 파일을 첨부합니다.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="badge rounded-pill bg-light text-dark border small">다중 파일</span>
+                    <span class="badge rounded-pill bg-light text-dark border small">이미지 미리보기</span>
+                    <span class="badge rounded-pill bg-light text-dark border small">파일 삭제</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. 유효성 검증 -->
+        <div class="col-md-6 col-lg-4">
+            <div class="progress-card p-4 h-100 animate-fade-in tour-card"
+                 onclick="openTour('validation')">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="stat-icon-circle text-white me-3 mb-0"
+                         style="width: 44px; height: 44px; font-size: 1.1rem; flex-shrink: 0; background: #6f42c1;">
+                        <i class="fas fa-check-double"></i>
+                    </div>
+                    <h6 class="fw-bold mb-0">자동 유효성 검증</h6>
+                </div>
+                <p class="text-muted small mb-3">공시 지침 기준에 따라 투자 비율·인력 비율을 실시간으로 검증합니다.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="badge rounded-pill bg-light text-dark border small">투자 비율 검증</span>
+                    <span class="badge rounded-pill bg-light text-dark border small">인력 비율 검증</span>
+                    <span class="badge rounded-pill bg-light text-dark border small">실시간 경고</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. 이력 조회 -->
+        <div class="col-md-6 col-lg-4">
+            <div class="progress-card p-4 h-100 animate-fade-in tour-card"
+                 onclick="openTour('history')">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="stat-icon-circle text-white me-3 mb-0"
+                         style="width: 44px; height: 44px; font-size: 1.1rem; flex-shrink: 0; background: #20c997;">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <h6 class="fw-bold mb-0">작성 이력 조회</h6>
+                </div>
+                <p class="text-muted small mb-3">누가, 언제, 어떤 값으로 수정했는지 항목별 전체 변경 이력을 확인합니다.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="badge rounded-pill bg-light text-dark border small">변경 이력</span>
+                    <span class="badge rounded-pill bg-light text-dark border small">작성자 추적</span>
+                    <span class="badge rounded-pill bg-light text-dark border small">타임스탬프</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. 보고서 출력 -->
+        <div class="col-md-6 col-lg-4">
+            <div class="progress-card p-4 h-100 animate-fade-in tour-card"
+                 onclick="openTour('report')">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="stat-icon-circle text-white me-3 mb-0"
+                         style="width: 44px; height: 44px; font-size: 1.1rem; flex-shrink: 0; background: #fd7e14;">
+                        <i class="fas fa-file-download"></i>
+                    </div>
+                    <h6 class="fw-bold mb-0">보고서 출력</h6>
+                </div>
+                <p class="text-muted small mb-3">완성된 공시 데이터를 Excel 및 Word 형식으로 즉시 다운로드합니다.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="badge rounded-pill bg-light text-dark border small">Excel 다운로드</span>
+                    <span class="badge rounded-pill bg-light text-dark border small">Word 다운로드</span>
+                    <span class="badge rounded-pill bg-light text-dark border small">증빙 포함</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 로그인 유도 -->
+    <div class="text-center mt-5 pt-2">
+        <a href="{{ url_for('login.login_page') }}" class="btn-premium-action px-5">
+            <i class="fas fa-sign-in-alt me-2"></i>로그인하여 시작하기
+        </a>
+        <div class="mt-3">
+            <a href="{{ url_for('login.contact') }}" class="text-muted small text-decoration-none">
+                <i class="fas fa-envelope me-1"></i>접속 문의하기
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- 기능 미리보기 모달 -->
+<div class="modal fade" id="tourModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+        <div class="modal-content" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 16px;">
+            <div class="modal-header border-bottom" style="border-color: var(--border-color) !important;">
+                <div class="d-flex align-items-center gap-3">
+                    <div id="modal-icon" class="stat-icon-circle text-white mb-0"
+                         style="width: 40px; height: 40px; font-size: 1rem; flex-shrink: 0;"></div>
+                    <h6 class="modal-title fw-bold mb-0" id="modal-title"></h6>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="modal-mockup" class="tour-mockup mb-3"></div>
+                <p id="modal-desc" class="text-muted small mb-0"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const TOUR_DATA = {
+    company: {
+        title: '기업 · 연도 관리',
+        icon: '<i class="fas fa-building"></i>',
+        color: 'var(--bs-primary)',
+        desc: '복수 기업의 연도별 공시 현황을 한눈에 파악하고, 기업·연도를 등록·삭제합니다. 각 연도별 작성 진행률이 실시간으로 표시됩니다.',
+        mockup: `
+            <table class="mock-table">
+                <tr>
+                    <td><span class="fw-bold">㈜한국정보</span><br><span class="text-muted" style="font-size:0.65rem;">2024년</span></td>
+                    <td><span class="mock-badge bg-success text-white">작성 완료</span></td>
+                    <td><div class="mock-progress"><div class="mock-progress-bar" style="width:100%"></div></div></td>
+                </tr>
+                <tr>
+                    <td><span class="fw-bold">㈜데이터넷</span><br><span class="text-muted" style="font-size:0.65rem;">2024년</span></td>
+                    <td><span class="mock-badge bg-primary text-white">작성 중</span></td>
+                    <td><div class="mock-progress"><div class="mock-progress-bar" style="width:62%"></div></div></td>
+                </tr>
+                <tr>
+                    <td><span class="fw-bold">㈜시큐어텍</span><br><span class="text-muted" style="font-size:0.65rem;">2024년</span></td>
+                    <td><span class="mock-badge bg-secondary text-white">대기</span></td>
+                    <td><div class="mock-progress"><div class="mock-progress-bar" style="width:0%"></div></div></td>
+                </tr>
+            </table>`
+    },
+    work: {
+        title: '공시 항목 작성',
+        icon: '<i class="fas fa-edit"></i>',
+        color: 'var(--bs-success)',
+        desc: '정보보호 투자·인력·활동 등 29개 공시 항목을 카테고리별로 입력합니다. 각 항목마다 도움말과 입력 가이드를 제공합니다.',
+        mockup: `
+            <div class="mock-label">Q3. 정보보호 투자액</div>
+            <div class="mock-input">1,200,000,000 원</div>
+            <div class="mock-label mt-2">Q4. IT 예산 대비 비율</div>
+            <div class="mock-input">12.5 %</div>
+            <div class="mock-label mt-2">Q7. 정보보호 전담 인력</div>
+            <div class="mock-input">8 명</div>`
+    },
+    evidence: {
+        title: '증빙 파일 첨부',
+        icon: '<i class="fas fa-paperclip"></i>',
+        color: '#ffc107',
+        desc: '각 공시 항목에 이미지, PDF, 엑셀 등 근거 파일을 첨부합니다. 항목별로 여러 파일을 등록하고 관리할 수 있습니다.',
+        mockup: `
+            <div class="mock-file-row">
+                <i class="fas fa-file-image text-primary"></i>
+                <span>정보보호_예산현황.png</span>
+                <span class="ms-auto text-muted">48KB</span>
+            </div>
+            <div class="mock-file-row">
+                <i class="fas fa-file-pdf text-danger"></i>
+                <span>ISMS_인증서.pdf</span>
+                <span class="ms-auto text-muted">210KB</span>
+            </div>
+            <div class="mock-file-row">
+                <i class="fas fa-file-excel text-success"></i>
+                <span>인력현황표_2024.xlsx</span>
+                <span class="ms-auto text-muted">32KB</span>
+            </div>`
+    },
+    validation: {
+        title: '자동 유효성 검증',
+        icon: '<i class="fas fa-check-double"></i>',
+        color: '#6f42c1',
+        desc: '입력값의 적정성을 실시간으로 검증합니다. 정보보호 투자 비율, 인력 비율 등 공시 지침 기준에 따른 경고 메시지를 제공합니다.',
+        mockup: `
+            <div class="mock-label">IT 예산</div>
+            <div class="mock-input">9,600,000,000 원</div>
+            <div class="mock-label mt-2">정보보호 투자액</div>
+            <div class="mock-input">1,200,000,000 원</div>
+            <div class="mock-alert" style="background:rgba(255,193,7,0.15); border:1px solid rgba(255,193,7,0.4); color:#856404;">
+                <i class="fas fa-exclamation-triangle me-1"></i>
+                투자 비율 12.5% — 권고 기준(10%) 충족
+            </div>`
+    },
+    history: {
+        title: '작성 이력 조회',
+        icon: '<i class="fas fa-history"></i>',
+        color: '#20c997',
+        desc: '누가, 언제, 어떤 값으로 수정했는지 항목별 전체 변경 이력을 추적합니다. 공동 작업 시 작성 흐름을 투명하게 관리할 수 있습니다.',
+        mockup: `
+            <div class="mock-timeline-row">
+                <div class="mock-dot bg-primary"></div>
+                <div>
+                    <div class="fw-bold" style="color:var(--text-main);">투자액 수정</div>
+                    <div class="text-muted">1,100,000,000 → 1,200,000,000</div>
+                    <div class="text-muted" style="font-size:0.65rem;">김철수 · 2024-11-15 14:32</div>
+                </div>
+            </div>
+            <div class="mock-timeline-row">
+                <div class="mock-dot bg-success"></div>
+                <div>
+                    <div class="fw-bold" style="color:var(--text-main);">인력 수 입력</div>
+                    <div class="text-muted">신규 입력: 8명</div>
+                    <div class="text-muted" style="font-size:0.65rem;">이영희 · 2024-11-14 10:05</div>
+                </div>
+            </div>
+            <div class="mock-timeline-row">
+                <div class="mock-dot bg-warning"></div>
+                <div>
+                    <div class="fw-bold" style="color:var(--text-main);">ISMS 인증 현황 수정</div>
+                    <div class="text-muted">미인증 → 인증 취득</div>
+                    <div class="text-muted" style="font-size:0.65rem;">김철수 · 2024-11-13 09:20</div>
+                </div>
+            </div>`
+    },
+    report: {
+        title: '보고서 출력',
+        icon: '<i class="fas fa-file-download"></i>',
+        color: '#fd7e14',
+        desc: '완성된 공시 데이터를 Excel 및 Word 형식으로 다운로드합니다. 증빙 이미지가 포함된 최종 보고서를 즉시 생성할 수 있습니다.',
+        mockup: `
+            <div class="text-muted mb-3" style="font-size:0.72rem;">
+                <i class="fas fa-building me-1"></i>㈜한국정보 · 2024년 공시 보고서
+            </div>
+            <div class="d-flex gap-2 flex-wrap mb-3">
+                <div class="mock-btn" style="background:rgba(25,135,84,0.12); color:#146c43; border:1px solid rgba(25,135,84,0.3);">
+                    <i class="fas fa-file-excel"></i> Excel 다운로드
+                </div>
+                <div class="mock-btn" style="background:rgba(13,110,253,0.12); color:#0a58ca; border:1px solid rgba(13,110,253,0.3);">
+                    <i class="fas fa-file-word"></i> Word 다운로드
+                </div>
+            </div>
+            <div class="text-muted" style="font-size:0.68rem;">
+                <i class="fas fa-check-circle text-success me-1"></i>29개 항목 완료 · 증빙 12건 포함
+            </div>`
+    }
+};
+
+function openTour(key) {
+    const d = TOUR_DATA[key];
+    document.getElementById('modal-title').textContent = d.title;
+    document.getElementById('modal-icon').innerHTML = d.icon;
+    document.getElementById('modal-icon').style.background = d.color;
+    document.getElementById('modal-mockup').innerHTML = d.mockup;
+    document.getElementById('modal-desc').textContent = d.desc;
+    new bootstrap.Modal(document.getElementById('tourModal')).show();
+}
+</script>
+
+{% endblock %}

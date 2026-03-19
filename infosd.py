@@ -2,8 +2,13 @@
 infosd - 정보보호공시 관리 시스템
 메인 Flask 애플리케이션
 """
+import hmac
+import hashlib
+import time
 import json
 from flask import Flask, render_template, jsonify
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from pathlib import Path
 import os
 
@@ -29,6 +34,16 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
 )
 app.jinja_env.auto_reload = True
+
+limiter = Limiter(get_remote_address, app=app, default_limits=[])
+
+
+@app.context_processor
+def inject_globals():
+    """모든 템플릿에 form_token 전역 주입"""
+    timestamp = str(int(time.time()))
+    sig = hmac.new(app.secret_key.encode(), timestamp.encode(), hashlib.sha256).hexdigest()
+    return {'form_token': f"{timestamp}.{sig}"}
 
 
 # ─── Jinja2 커스텀 필터 ───────────────────────────
