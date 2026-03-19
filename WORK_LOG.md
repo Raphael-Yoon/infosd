@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-03-19 (v1.18)
+
+### 변경 내역
+- [UI] `templates/disclosure/dashboard.html`: confirmed 상태 버튼 정리
+  - "워드 다운로드" 버튼 제거 (다운로드는 review 페이지에서 진행)
+  - "확정된 자료 보기" → "공시 자료 확인" 버튼명 변경
+- [기능] `report_service.py`: 워드 숫자 셀 오른쪽 정렬
+  - `set_cell_right()` 헬퍼 함수 추가 (`WD_ALIGN_PARAGRAPH.RIGHT`)
+  - 투자액(A/B), 비율(B/A), 인력(총임직원/IT/내부/외부/계), 비율(D/C) 전체 적용
+- [기능] `report_service.py`: 작성 기준일 자동 채우기
+  - 헤더 단락의 `20  .  .` 패턴을 공시 연도 12월 31일(`YY. 12. 31.`)로 교체
+- [기능] `report_service.py`: 다운로드 파일명 변경
+  - `disclosure_report_{회사명}_{연도}.docx` → `정보보호공시_{회사명}_{연도}.docx`
+  - `disclosure_report_{회사명}_{연도}.xlsx` → `정보보호공시_{회사명}_{연도}.xlsx`
+
+### 변경 파일
+- `templates/disclosure/dashboard.html`: confirmed 버튼 정리 및 명칭 변경
+- `report_service.py`: 숫자 오른쪽 정렬, 작성 기준일 채우기, 파일명 변경
+- `WORK_LOG.md`: 작업 내용 기록
+
+---
+
 ## 2026-03-19 (v1.17)
 
 ### 변경 내역

@@ -1,6 +1,8 @@
 import os
+import re
 import json
 from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 import openpyxl
 from openpyxl.drawing.image import Image as XlImage
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -31,6 +33,12 @@ class DisclosureReportService:
             v = answers.get(qid, default)
             if v is None or v == '': return default
             return v
+
+        def set_cell_right(cell, text):
+            """셀 텍스트 설정 후 오른쪽 정렬"""
+            cell.text = text
+            for para in cell.paragraphs:
+                para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
 
         def format_num(v):
             try:
@@ -86,15 +94,29 @@ class DisclosureReportService:
         main_cell = container.rows[0].cells[0]
         nested_tables = main_cell.tables
         
+        # 작성 기준일 채우기 (공시 연도의 마지막 날: YYYY년 12월 31일)
+        date_ymd = f"{year % 100:02d}. 12. 31."
+        for para in main_cell.paragraphs:
+            if '작성 기준일' in para.text:
+                runs = para.runs
+                if runs:
+                    full = ''.join(r.text or '' for r in runs)
+                    new_full = re.sub(r'20\s*\.\s*\.', date_ymd, full)
+                    if new_full != full:
+                        runs[0].text = new_full
+                        for r in runs[1:]:
+                            r.text = ''
+                break
+
         if len(nested_tables) >= 2:
             # Table 1 (Title)
             nested_tables[0].rows[0].cells[0].text = f"({company['name']}) 정보보호 현황"
-            
+
             # Table 2 (Main)
             t2 = nested_tables[1]
-            t2.rows[0].cells[3].text = f"{format_num(it_a)} 원"
-            t2.rows[1].cells[3].text = f"{format_num(total_b)} 원"
-            
+            set_cell_right(t2.rows[0].cells[3], f"{format_num(it_a)} 원")
+            set_cell_right(t2.rows[1].cells[3], f"{format_num(total_b)} 원")
+
             # 주요 투자 항목 (Q27)
             if 'Q27' in answers:
                 try:
@@ -103,15 +125,15 @@ class DisclosureReportService:
                     t2.rows[3].cells[3].text = item_text
                 except:
                     t2.rows[3].cells[3].text = str(answers['Q27'])
-            
-            t2.rows[4].cells[3].text = f"{ratio_inv} %"
-            
-            t2.rows[6].cells[3].text = f"{format_num(total_emp)} 명"
-            t2.rows[7].cells[3].text = f"{format_num(it_emp)} 명"
-            t2.rows[8].cells[3].text = f"{format_num(internal)} 명"
-            t2.rows[9].cells[3].text = f"{format_num(external)} 명"
-            t2.rows[10].cells[3].text = f"{format_num(total_d)} 명"
-            t2.rows[11].cells[3].text = f"{ratio_per} %"
+
+            set_cell_right(t2.rows[4].cells[3], f"{ratio_inv} %")
+
+            set_cell_right(t2.rows[6].cells[3], f"{format_num(total_emp)} 명")
+            set_cell_right(t2.rows[7].cells[3], f"{format_num(it_emp)} 명")
+            set_cell_right(t2.rows[8].cells[3], f"{format_num(internal)} 명")
+            set_cell_right(t2.rows[9].cells[3], f"{format_num(external)} 명")
+            set_cell_right(t2.rows[10].cells[3], f"{format_num(total_d)} 명")
+            set_cell_right(t2.rows[11].cells[3], f"{ratio_per} %")
             
             # CISO/CPO (Nested Table in Row 12, Cell 3 of T2)
             sub_tables = t2.rows[12].cells[3].tables
@@ -174,7 +196,7 @@ class DisclosureReportService:
         # Footer Confirmation (Container Row 1)
         container.rows[1].cells[0].text = f"{company['name']} 대표이사 OOO는 상기 공시 내용에 거짓이 없음을 확인하였습니다.\n\n{datetime.now().strftime('%Y. %m. %d.')}\n\n(회사 대표이사 직인)"
 
-        output_filename = f"disclosure_report_{company['name']}_{year}.docx"
+        output_filename = f"정보보호공시_{company['name']}_{year}.docx"
         output_dir = os.path.join(os.path.dirname(__file__), 'uploads')
         os.makedirs(output_dir, exist_ok=True)
         output_path = os.path.join(output_dir, output_filename)
@@ -434,7 +456,7 @@ class DisclosureReportService:
                     except Exception:
                         pass
 
-        output_filename = f"disclosure_report_{company['name']}_{year}.xlsx"
+        output_filename = f"정보보호공시_{company['name']}_{year}.xlsx"
         output_dir = os.path.join(os.path.dirname(__file__), 'uploads')
         os.makedirs(output_dir, exist_ok=True)
         output_path = os.path.join(output_dir, output_filename)
