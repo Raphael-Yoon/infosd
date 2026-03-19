@@ -57,6 +57,7 @@
     }
 
     .q-card {
+        scroll-margin-top: 100px;
         background: var(--bg-surface);
         border: 1px solid var(--border-color);
         border-radius: 20px;
@@ -206,12 +207,14 @@
     .num-input-wrap {
         display: flex;
         align-items: center;
-        border: 1.5px solid var(--border-color);
+        border: 1.5px solid #b0bec5;
         border-radius: 10px;
         overflow: hidden;
         margin-top: 16px;
         transition: border-color 0.2s;
+        background: var(--bg-surface);
     }
+    [data-theme='dark'] .num-input-wrap { border-color: var(--border-color); background: var(--bg-main); }
     .num-input-wrap:focus-within { border-color: #3b82f6; }
     .num-input {
         flex: 1;
@@ -265,17 +268,20 @@
         gap: 8px;
     }
     .inv-card {
-        background: var(--bg-main);
-        border: 1.5px dashed var(--border-color);
+        background: var(--bg-surface);
+        border: 1.5px solid #b0bec5;
         border-radius: 12px;
         padding: 20px;
         transition: all 0.2s;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.07);
     }
     .inv-card:hover { border-color: var(--primary-color); }
+    [data-theme='dark'] .inv-card { background: var(--bg-main); border: 1.5px dashed var(--border-color); box-shadow: none; }
     .inv-card-label { font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; }
     .inv-card-name { font-size: 0.9rem; font-weight: 700; color: var(--text-main); margin-bottom: 14px; line-height: 1.4; min-height: 36px; }
+    /* ── 합계 바 (라이트모드) ── */
     .inv-sum-bar {
-        background: #0f172a;
+        background: #1e293b;
         border-radius: 12px;
         padding: 16px 24px;
         display: flex;
@@ -283,13 +289,19 @@
         align-items: center;
         margin-top: 16px;
     }
-    .inv-sum-label { color: #94a3b8; font-size: 0.85rem; font-weight: 700; }
-    .inv-sum-value { color: #ffffff; font-size: 1.3rem; font-weight: 900; font-family: 'Pretendard', sans-serif; }
+    /* 라이트모드 */
+    .inv-sum-bar { background: #dbeafe; border: 1.5px solid #93c5fd; }
+    .inv-sum-label { color: #1e40af; font-size: 0.85rem; font-weight: 700; }
+    .inv-sum-value { color: #1e3a8a; font-size: 1.3rem; font-weight: 900; font-family: 'Pretendard', sans-serif; }
+    /* 다크모드 복원 */
+    [data-theme='dark'] .inv-sum-bar { background: #0f172a; border: none; }
+    [data-theme='dark'] .inv-sum-label { color: #94a3b8; }
+    [data-theme='dark'] .inv-sum-value { color: #ffffff; }
 
-    /* I-3 / II-4 자동계산 비율 표시 바 */
+    /* ── 비율 바 (I-3 / II-4) ── */
     .ratio-bar {
-        background: linear-gradient(135deg, #0f2027 0%, #1a3a2a 100%);
-        border: 1.5px solid #1e4d3a;
+        background: #dcfce7;
+        border: 1.5px solid #86efac;
         border-radius: 12px;
         padding: 14px 24px;
         display: flex;
@@ -297,9 +309,14 @@
         align-items: center;
         margin-top: 12px;
     }
-    .ratio-bar-label { color: #6ee7b7; font-size: 0.88rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-    .ratio-badge { background: #065f46; color: #6ee7b7; border-radius: 6px; padding: 2px 8px; font-size: 0.78rem; font-weight: 800; }
-    .ratio-bar-value { color: #34d399; font-size: 1.4rem; font-weight: 900; font-family: 'Pretendard', sans-serif; }
+    .ratio-bar-label { color: #15803d; font-size: 0.88rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .ratio-badge { background: #16a34a; color: #ffffff; border-radius: 6px; padding: 2px 8px; font-size: 0.78rem; font-weight: 800; }
+    .ratio-bar-value { color: #15803d; font-size: 1.4rem; font-weight: 900; font-family: 'Pretendard', sans-serif; }
+    /* 다크모드 복원 */
+    [data-theme='dark'] .ratio-bar { background: linear-gradient(135deg, #0f2027 0%, #1a3a2a 100%); border-color: #1e4d3a; }
+    [data-theme='dark'] .ratio-bar-label { color: #6ee7b7; }
+    [data-theme='dark'] .ratio-badge { background: #065f46; color: #6ee7b7; }
+    [data-theme='dark'] .ratio-bar-value { color: #34d399; }
 
     /* Grid specific adjustment */
     .inv-card .num-input {
@@ -329,10 +346,34 @@
     .evidence-tag { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 20px; padding: 3px 12px; font-size: 0.82rem; font-weight: 600; color: var(--text-main); }
     .upload-btn { background: var(--primary-color); color: #ffffff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s; }
     .upload-btn:hover { background: var(--primary-dark); }
-    .ev-file-item { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; margin-top: 6px; font-size: 0.85rem; }
+    .upload-area { display: flex; flex-direction: row; align-items: flex-start; gap: 10px; }
+    .upload-area .ev-list-wrap { flex: 1; min-width: 0; }
+    .ev-file-item { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 0; display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem; overflow: hidden; }
+    .ev-file-item + .ev-file-item { margin-top: 6px; }
+    .ev-file-item:hover { border-color: var(--primary-color); }
+    .ev-file-link { flex: 1; min-width: 0; padding: 8px 14px; text-decoration: none; color: inherit; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ev-file-name { color: var(--text-main); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
-    .ev-del-btn { color: var(--text-muted); background: none; border: none; cursor: pointer; font-size: 0.95rem; transition: color 0.15s; }
+    .ev-del-btn { color: var(--text-muted); background: none; border: none; cursor: pointer; font-size: 0.95rem; transition: color 0.15s; padding: 8px 14px; flex-shrink: 0; }
     .ev-del-btn:hover { color: var(--color-error); }
+
+    /* ── Table ── */
+    /* ── Table: Light mode (default) ── */
+    .isd-table { width: 100%; border-collapse: collapse; }
+    .isd-table th { background: #dde3ec; color: #475569; padding: 8px 10px; border: 1px solid #c8d0db; text-align: center; white-space: nowrap; font-weight: 600; }
+    .isd-table td { padding: 5px 7px; border: 1px solid #c8d0db; background: #ffffff; }
+    .isd-table td.tbl-del-cell { padding: 4px; text-align: center; }
+    .isd-table td.tbl-none-cell { padding: 5px 7px; text-align: center; }
+    .tbl-input { width: 100%; background: #ffffff; color: #1e293b; border: 1px solid #c8d0db; border-radius: 4px; padding: 4px 6px; }
+    .tbl-input:disabled { opacity: 0.35; cursor: not-allowed; }
+    .tbl-none-check { width: 16px; height: 16px; cursor: pointer; }
+    .tbl-row-label { color: #475569; font-weight: 600; padding: 4px 8px; display: block; text-align: center; }
+    .btn-add-row { margin-top: 8px; background: #f1f5f9; color: var(--primary-color); border: 1px dashed #c8d0db; border-radius: 4px; padding: 5px 14px; font-size: 0.82rem; cursor: pointer; }
+    /* ── Table: Dark mode ── */
+    [data-theme='dark'] .isd-table th { background: #1a2535; color: #8fa3bf; border-color: #2a3a50; }
+    [data-theme='dark'] .isd-table td { background: #0f1923; border-color: #2a3a50; }
+    [data-theme='dark'] .tbl-input { background: #0f1923; color: #c8d8e8; border-color: #2a3a50; }
+    [data-theme='dark'] .tbl-row-label { color: #8fa3bf; }
+    [data-theme='dark'] .btn-add-row { background: #1a2535; border-color: #2a3a50; }
 
     /* ── Reset Button ── */
     .reset-btn {
@@ -500,10 +541,34 @@
         border-color: #78350f;
         color: #fca5a5;
     }
+    /* ── 확정 잠금 모드 ── */
+    .confirmed-mode input:not([type="file"]),
+    .confirmed-mode textarea,
+    .confirmed-mode select,
+    .confirmed-mode .yn-btn,
+    .confirmed-mode .reset-btn,
+    .confirmed-mode .upload-btn,
+    .confirmed-mode .ev-del-btn,
+    .confirmed-mode .tbl-input,
+    .confirmed-mode .tbl-none-check,
+    .confirmed-mode [onclick*="addTableRow"],
+    .confirmed-mode [onclick*="removeTableRow"] {
+        pointer-events: none;
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .confirmed-mode .tbl-add-row-btn { display: none; }
 </style>
 {% endblock %}
 
 {% block content %}
+{% if is_confirmed %}
+<div class="alert d-flex align-items-center gap-3 mb-0 rounded-0 fw-bold" style="background: #1a2e1a; border: none; border-bottom: 2px solid #22c55e; color: #86efac; padding: 14px 32px;">
+    <i class="fas fa-lock fa-lg"></i>
+    <span>공시 자료가 확정되었습니다. 내용을 수정하려면 <a href="{{ url_for('disclosure.review') }}" class="fw-bold" style="color: #4ade80;">최종 검토 페이지</a>에서 확정을 취소하세요.</span>
+</div>
+<script>document.body.classList.add('confirmed-mode');</script>
+{% endif %}
 <!-- Logo Header -->
 <div class="text-center animate-fade-in pb-4" style="padding-top: 80px;">
     <a href="{{ url_for('company.index') }}">
@@ -556,11 +621,16 @@
                                     {% set ev_list = sub_q.evidence_list | from_json_or_default([]) %}
                                     {% for ev_item in ev_list %}<span class="evidence-tag">{{ ev_item }}</span>{% endfor %}
                                 </div>
-                                <label class="upload-btn"><i class="fas fa-upload me-1"></i>파일 선택<input type="file" style="display:none;" onchange="uploadEvidence('{{ sub_q.id }}', this.files[0])"></label>
-                                <div id="evidence-list-{{ sub_q.id }}" style="margin-top:8px;">
-                                    {% for ev in evidence.get(sub_q.id, []) %}
-                                    <div class="ev-file-item"><span>{{ ev.file_name }}</span><button type="button" class="ev-del-btn" onclick="deleteEvidence('{{ sub_q.id }}', '{{ ev.id }}')"><i class="fas fa-times"></i></button></div>
-                                    {% endfor %}
+                                <div class="upload-area">
+                                    <label class="upload-btn"><i class="fas fa-upload me-1"></i>파일 선택<input type="file" style="display:none;" onchange="uploadEvidence('{{ sub_q.id }}', this.files[0])"></label>
+                                    <div id="evidence-list-{{ sub_q.id }}" class="ev-list-wrap">
+                                        {% for ev in evidence.get(sub_q.id, []) %}
+                                        <div class="ev-file-item">
+                                            <a href="javascript:void(0)" onclick="viewEvidenceInline('{{ ev.file_url }}', '{{ ev.file_type }}', '{{ ev.file_name }}')" class="ev-file-link"><span>{{ ev.file_name }}</span></a>
+                                            <button type="button" class="ev-del-btn" onclick="deleteEvidence('{{ sub_q.id }}', '{{ ev.id }}')"><i class="fas fa-times"></i></button>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
                                 </div>
                             </div>
                             {% endif %}
@@ -588,7 +658,7 @@
                 <div class="inv-grid-title"><i class="fas fa-users text-primary me-1"></i> 인력 현황</div>
                 <div class="row g-3">
                     {% for per_q in questions if per_q.id in per_ids %}
-                    <div class="col-6 col-md-3">
+                    <div class="col-6">
                         <div class="inv-card h-100">
                             <div class="inv-card-label">{{ per_q.display_number }}</div>
                             <div class="inv-card-name" style="font-size:0.82rem; min-height:28px;">{{ per_labels[per_q.id] }}</div>
@@ -607,11 +677,16 @@
                                     {% set ev_list = per_q.evidence_list | from_json_or_default([]) %}
                                     {% for ev_item in ev_list %}<span class="evidence-tag">{{ ev_item }}</span>{% endfor %}
                                 </div>
-                                <label class="upload-btn"><i class="fas fa-upload me-1"></i>파일 선택<input type="file" style="display:none;" onchange="uploadEvidence('{{ per_q.id }}', this.files[0])"></label>
-                                <div id="evidence-list-{{ per_q.id }}" style="margin-top:8px;">
-                                    {% for ev in evidence.get(per_q.id, []) %}
-                                    <div class="ev-file-item"><span>{{ ev.file_name }}</span><button type="button" class="ev-del-btn" onclick="deleteEvidence('{{ per_q.id }}', '{{ ev.id }}')"><i class="fas fa-times"></i></button></div>
-                                    {% endfor %}
+                                <div class="upload-area">
+                                    <label class="upload-btn"><i class="fas fa-upload me-1"></i>파일 선택<input type="file" style="display:none;" onchange="uploadEvidence('{{ per_q.id }}', this.files[0])"></label>
+                                    <div id="evidence-list-{{ per_q.id }}" class="ev-list-wrap">
+                                        {% for ev in evidence.get(per_q.id, []) %}
+                                        <div class="ev-file-item">
+                                            <a href="javascript:void(0)" onclick="viewEvidenceInline('{{ ev.file_url }}', '{{ ev.file_type }}', '{{ ev.file_name }}')" class="ev-file-link"><span>{{ ev.file_name }}</span></a>
+                                            <button type="button" class="ev-del-btn" onclick="deleteEvidence('{{ per_q.id }}', '{{ ev.id }}')"><i class="fas fa-times"></i></button>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
                                 </div>
                             </div>
                             {% endif %}
@@ -620,13 +695,13 @@
                     {% endfor %}
                 </div>
                 <div class="ratio-bar" style="margin-top:16px;">
-                    <div class="ratio-bar-label"><span class="ratio-badge">II-4</span> 정보보호 인력비율 (D/C)</div>
+                    <div class="ratio-bar-label"><span class="ratio-badge">II-4</span> 정보보호 인력비율 ((D1+D2)/C)</div>
                     <div class="ratio-bar-value"><span id="personnel-ratio-display">-</span></div>
                 </div>
             </div>
         </div>
         {% elif q.id not in ['Q4', 'Q5', 'Q6', 'Q28', 'Q11', 'Q12'] %}
-        <div class="q-card animate-fade-in level-{{ q.level }}" id="card-{{ q.id }}">
+        <div class="q-card animate-fade-in level-{{ q.level }}" id="card-{{ q.id }}"{% if q.options_list.none_hides is defined %} data-none-hides='{{ q.options_list.none_hides | tojson }}'{% endif %}>
             <button type="button" class="reset-btn" onclick="resetAnswer('{{ q.id }}')" title="답변 초기화"><i class="fas fa-undo-alt"></i></button>
             <div class="q-header">
                 <div class="q-number-badge">{{ q.display_number or q.id }}</div>
@@ -652,7 +727,7 @@
                     <span class="num-unit">{{ q.unit }}</span>
                 </div>
                 {% elif q.type in ['text', 'textarea', 'long_text'] %}
-                <textarea id="input-{{ q.id }}" class="text-area-input" rows="4" placeholder="{{ q.help_text or '내용을 상세히 기재해 주세요.' }}" onchange="saveAnswer('{{ q.id }}', this.value)">{{ answers.get(q.id, '') }}</textarea>
+                <textarea id="input-{{ q.id }}" class="text-area-input" rows="4" placeholder="{{ q.help_text or '해당 내용을 구체적으로 입력해 주세요. (예: 도입 목적, 운영 방식 등)' }}" onchange="saveAnswer('{{ q.id }}', this.value)">{{ answers.get(q.id, '') }}</textarea>
                 {% elif q.type == 'select' and q.options_list %}
                 <div class="mt-3 d-flex flex-column gap-2">
                     {% for opt in q.options_list %}
@@ -674,14 +749,15 @@
                 {% elif q.type == 'table' and q.options_list %}
                 {% set tbl_cols = q.options_list.columns %}
                 {% set tbl_rows = answers.get(q.id) | from_json_or_default([]) %}
-                {% set tbl_style = 'width:100%; background:#0f1923; color:#c8d8e8; border:1px solid #2a3a50; border-radius:4px; padding:4px 6px;' %}
+                {% set tbl_style = '' %}
                 <div class="table-input-wrap" style="overflow-x:auto; margin-top:8px;">
-                <table class="ciso-table" id="tbl-{{ q.id }}" style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                <table class="isd-table" id="tbl-{{ q.id }}" style="font-size:0.85rem;">
                     <thead><tr>
                     {% for col in tbl_cols %}
-                    <th style="background:#1a2535; color:#8fa3bf; padding:8px 10px; border:1px solid #2a3a50; text-align:center; white-space:nowrap;">{{ col.label }}</th>
+                    <th>{{ col.label }}</th>
                     {% endfor %}
-                    {% if q.options_list.dynamic_rows %}<th style="background:#1a2535; border:1px solid #2a3a50; width:36px;"></th>{% endif %}
+                    {% if q.options_list.dynamic_rows %}<th style="width:36px;"></th>{% endif %}
+                    {% if q.options_list.fixed_rows %}<th style="width:60px;">해당없음</th>{% endif %}
                     </tr></thead>
                     <tbody>
                     {% if q.options_list.dynamic_rows %}
@@ -690,7 +766,7 @@
                         {% for row_data in render_rows %}
                         <tr>
                         {% for col in tbl_cols %}
-                        <td style="padding:5px 7px; border:1px solid #2a3a50;">
+                        <td>
                         {% if col.type == 'select' %}
                             <select class="tbl-input" data-qid="{{ q.id }}" data-colkey="{{ col.key }}" onchange="saveTableAnswer('{{ q.id }}')" style="{{ tbl_style }}">
                                 <option value="">-</option>
@@ -700,7 +776,7 @@
                             </select>
                         {% elif col.type == 'date' %}
                             <input type="date" class="tbl-input" data-qid="{{ q.id }}" data-colkey="{{ col.key }}"
-                                value="{{ row_data.get(col.key, '') }}" onchange="saveTableAnswer('{{ q.id }}')" style="{{ tbl_style }}">
+                                value="{{ row_data.get(col.key, '') | replace('.', '-') }}" onchange="saveTableAnswer('{{ q.id }}')" style="{{ tbl_style }}">
                         {% else %}
                             <input type="text" class="tbl-input" data-qid="{{ q.id }}" data-colkey="{{ col.key }}"
                                 value="{{ row_data.get(col.key, '') }}" placeholder="{{ col.label }}"
@@ -708,7 +784,7 @@
                         {% endif %}
                         </td>
                         {% endfor %}
-                        <td style="padding:4px; border:1px solid #2a3a50; text-align:center;">
+                        <td class="tbl-del-cell">
                             <button type="button" onclick="removeTableRow(this, '{{ q.id }}')"
                                 style="background:none; border:none; color:#e05050; cursor:pointer; font-size:1rem; line-height:1;">×</button>
                         </td>
@@ -723,9 +799,9 @@
                         {% endfor %}
                         <tr data-rowtype="{{ row_type }}">
                         {% for col in tbl_cols %}
-                        <td style="padding:5px 7px; border:1px solid #2a3a50;">
+                        <td>
                         {% if col.key == 'type' %}
-                            <span style="color:#8fa3bf; font-weight:600; padding:4px 8px; display:block; text-align:center;">{{ row_type }}</span>
+                            <span class="tbl-row-label">{{ row_type }}</span>
                         {% elif col.type == 'select' %}
                             <select class="tbl-input" data-qid="{{ q.id }}" data-colkey="{{ col.key }}" onchange="saveTableAnswer('{{ q.id }}')" style="{{ tbl_style }}">
                                 <option value="">-</option>
@@ -733,6 +809,9 @@
                                 <option value="{{ ch }}" {% if ns.row_data.get(col.key) == ch %}selected{% endif %}>{{ ch }}</option>
                                 {% endfor %}
                             </select>
+                        {% elif col.type == 'date' %}
+                            <input type="date" class="tbl-input" data-qid="{{ q.id }}" data-colkey="{{ col.key }}"
+                                value="{{ ns.row_data.get(col.key, '') | replace('.', '-') }}" onchange="saveTableAnswer('{{ q.id }}')" style="{{ tbl_style }}">
                         {% else %}
                             <input type="text" class="tbl-input" data-qid="{{ q.id }}" data-colkey="{{ col.key }}"
                                 value="{{ ns.row_data.get(col.key, '') }}" placeholder="{{ col.label }}"
@@ -740,6 +819,11 @@
                         {% endif %}
                         </td>
                         {% endfor %}
+                        <td class="tbl-none-cell">
+                            <input type="checkbox" class="tbl-none-check" data-qid="{{ q.id }}"
+                                {% if ns.row_data.get('해당없음') == 'Y' %}checked{% endif %}
+                                onchange="toggleCisoNone(this)">
+                        </td>
                         </tr>
                         {% endfor %}
                     {% endif %}
@@ -750,7 +834,7 @@
                     data-qid="{{ q.id }}"
                     data-cols='{{ q.options_list.columns | tojson }}'
                     onclick="addTableRow(this.dataset.qid, JSON.parse(this.dataset.cols))"
-                    style="margin-top:8px; background:#1a2535; color:#5b9bd5; border:1px dashed #2a3a50; border-radius:4px; padding:5px 14px; font-size:0.82rem; cursor:pointer;">
+                    class="btn-add-row">
                     + 행 추가
                 </button>
                 {% endif %}
@@ -770,16 +854,18 @@
                         {% set ev_list = q.evidence_list | from_json_or_default([]) %}
                         {% for ev_item in (ev_list if ev_list is iterable else [q.evidence_list]) %}<span class="evidence-tag">{{ ev_item }}</span>{% endfor %}
                     </div>
-                    <label class="upload-btn"><i class="fas fa-upload me-1"></i>파일 선택<input type="file" style="display:none;" onchange="uploadEvidence('{{ q.id }}', this.files[0])"></label>
-                    <div id="evidence-list-{{ q.id }}" style="margin-top:10px;">
-                        {% for ev in evidence.get(q.id, []) %}
-                        <div class="ev-file-item">
-                            <a href="javascript:void(0)" onclick="viewEvidenceInline('{{ ev.file_url }}', '{{ ev.file_type }}', '{{ ev.file_name }}')" class="ev-file-link" style="text-decoration:none; color:inherit;">
-                                <span>{{ ev.file_name }}</span>
-                            </a>
-                            <button type="button" class="ev-del-btn" onclick="deleteEvidence('{{ q.id }}', '{{ ev.id }}')"><i class="fas fa-times"></i></button>
+                    <div class="upload-area">
+                        <label class="upload-btn"><i class="fas fa-upload me-1"></i>파일 선택<input type="file" style="display:none;" onchange="uploadEvidence('{{ q.id }}', this.files[0])"></label>
+                        <div id="evidence-list-{{ q.id }}" class="ev-list-wrap">
+                            {% for ev in evidence.get(q.id, []) %}
+                            <div class="ev-file-item">
+                                <a href="javascript:void(0)" onclick="viewEvidenceInline('{{ ev.file_url }}', '{{ ev.file_type }}', '{{ ev.file_name }}')" class="ev-file-link">
+                                    <span>{{ ev.file_name }}</span>
+                                </a>
+                                <button type="button" class="ev-del-btn" onclick="deleteEvidence('{{ q.id }}', '{{ ev.id }}')"><i class="fas fa-times"></i></button>
+                            </div>
+                            {% endfor %}
                         </div>
-                        {% endfor %}
                     </div>
                 </div>
                 {% endif %}
@@ -799,6 +885,7 @@
     {% for cat in sidebar_categories %}
     <a href="/disclosure/work?category={{ cat.id }}"
        class="footer-btn-cat {% if current_category_id == cat.id %}active{% endif %}"
+       data-cat-id="{{ cat.id }}"
        title="{{ cat.name }}">
         <i class="fas
             {% if cat.id == 1 %}fa-piggy-bank
@@ -846,7 +933,7 @@
                     <h5 class="modal-title fw-bold" id="evidenceModalTitle">
                         <i class="fas fa-file-alt text-primary me-2"></i><span id="evModalFilename">파일 뷰어</span>
                     </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-0 text-center" style="background: #1e1e1e; min-height: 500px; max-height: 80vh; overflow-y: auto; display: flex; align-items: center; justify-content: center;">
                     <div id="evModalContent" style="width: 100%; height: 100%; min-height: 600px;"></div>
@@ -864,12 +951,28 @@
 
 {% block scripts %}
 <script>
+    const IS_CONFIRMED = {{ 'true' if is_confirmed else 'false' }};
+
     function formatNumber(input) {
         const raw = input.value.replace(/,/g, '');
         if (raw !== '' && !isNaN(raw)) { input.value = Number(raw).toLocaleString(); }
     }
 
+    function updateCatProgress(catProgress) {
+        if (!catProgress) return;
+        catProgress.forEach(cat => {
+            const btn = document.querySelector(`.footer-btn-cat[data-cat-id="${cat.id}"]`);
+            if (!btn) return;
+            const rateEl = btn.querySelector('.footer-cat-rate');
+            if (rateEl) {
+                rateEl.textContent = cat.rate + '%';
+                rateEl.classList.toggle('done', cat.rate === 100);
+            }
+        });
+    }
+
     function saveAnswer(qId, value) {
+        if (IS_CONFIRMED) return;
         if (typeof value === 'string' && /^[\d,]+$/.test(value)) { value = value.replace(/,/g, ''); }
         fetch('/disclosure/api/answer', {
             method: 'POST',
@@ -878,8 +981,12 @@
         })
         .then(res => res.json())
         .then(data => {
-            if (!data.success) { alert('⚠️ 입력 오류: ' + data.message); }
-            else { updateInvestmentSum(); if (['YES', 'NO', ''].includes(value)) { setTimeout(() => location.reload(), 120); } }
+            if (!data.success) { alert('입력 오류: ' + data.message); }
+            else {
+                updateInvestmentSum();
+                updateCatProgress(data.cat_progress);
+                if (['YES', 'NO', ''].includes(value)) { setTimeout(() => location.reload(), 120); }
+            }
         });
     }
 
@@ -901,26 +1008,65 @@
             tr.querySelectorAll('.tbl-input').forEach(inp => {
                 rowData[inp.dataset.colkey] = inp.value;
             });
+            const noneCheck = tr.querySelector('.tbl-none-check');
+            if (noneCheck) rowData['해당없음'] = noneCheck.checked ? 'Y' : '';
             rowsData.push(rowData);
         });
         saveAnswer(qId, JSON.stringify(rowsData));
     }
 
+    function applyNoneState(qId) {
+        const table = document.getElementById('tbl-' + qId);
+        if (!table) return;
+        const checks = [...table.querySelectorAll('.tbl-none-check')];
+        const allNone = checks.length > 0 && checks.every(c => c.checked);
+        // 증빙 섹션 숨김/표시
+        const evSection = document.getElementById('ev-section-' + qId);
+        if (evSection) evSection.style.display = allNone ? 'none' : '';
+        // none_hides 카드 숨김/표시
+        const card = document.getElementById('card-' + qId);
+        if (card && card.dataset.noneHides) {
+            JSON.parse(card.dataset.noneHides).forEach(depQId => {
+                const depCard = document.getElementById('card-' + depQId);
+                if (depCard) depCard.style.display = allNone ? 'none' : '';
+            });
+        }
+    }
+
+    function toggleCisoNone(cb) {
+        const tr = cb.closest('tr');
+        tr.querySelectorAll('.tbl-input').forEach(inp => {
+            inp.disabled = cb.checked;
+        });
+        applyNoneState(cb.dataset.qid);
+        saveTableAnswer(cb.dataset.qid);
+    }
+
+    // 페이지 로드 시 해당없음 상태 복원
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.tbl-none-check:checked').forEach(cb => {
+            cb.closest('tr').querySelectorAll('.tbl-input').forEach(inp => {
+                inp.disabled = true;
+            });
+        });
+        // none_hides 및 증빙 상태도 복원
+        document.querySelectorAll('.isd-table').forEach(tbl => {
+            const qId = tbl.id.replace('tbl-', '');
+            applyNoneState(qId);
+        });
+    });
+
     function addTableRow(qId, colDefs) {
         const tbody = document.querySelector('#tbl-' + qId + ' tbody');
         if (!tbody) return;
         const tr = document.createElement('tr');
-        const cellStyle = 'padding:5px 7px; border:1px solid #2a3a50;';
-        const inputStyle = 'width:100%; background:#0f1923; color:#c8d8e8; border:1px solid #2a3a50; border-radius:4px; padding:4px 6px;';
         colDefs.forEach(col => {
             const td = document.createElement('td');
-            td.style.cssText = cellStyle;
             if (col.type === 'select') {
                 const sel = document.createElement('select');
                 sel.className = 'tbl-input';
                 sel.dataset.qid = qId;
                 sel.dataset.colkey = col.key;
-                sel.style.cssText = inputStyle;
                 sel.onchange = () => saveTableAnswer(qId);
                 sel.innerHTML = '<option value="">-</option>' + (col.choices || []).map(c => `<option value="${c}">${c}</option>`).join('');
                 td.appendChild(sel);
@@ -928,21 +1074,20 @@
                 const inp = document.createElement('input');
                 inp.type = 'date'; inp.className = 'tbl-input';
                 inp.dataset.qid = qId; inp.dataset.colkey = col.key;
-                inp.style.cssText = inputStyle;
                 inp.onchange = () => saveTableAnswer(qId);
                 td.appendChild(inp);
             } else {
                 const inp = document.createElement('input');
                 inp.type = 'text'; inp.className = 'tbl-input';
                 inp.dataset.qid = qId; inp.dataset.colkey = col.key;
-                inp.placeholder = col.label; inp.style.cssText = inputStyle;
+                inp.placeholder = col.label;
                 inp.onblur = () => saveTableAnswer(qId);
                 td.appendChild(inp);
             }
             tr.appendChild(td);
         });
         const delTd = document.createElement('td');
-        delTd.style.cssText = 'padding:4px; border:1px solid #2a3a50; text-align:center;';
+        delTd.className = 'tbl-del-cell';
         delTd.innerHTML = '<button type="button" onclick="removeTableRow(this,\'' + qId + '\')" style="background:none;border:none;color:#e05050;cursor:pointer;font-size:1rem;">×</button>';
         tr.appendChild(delTd);
         tbody.appendChild(tr);
@@ -999,7 +1144,7 @@
     }
 
     function uploadEvidence(qId, file) {
-        if (!file) return;
+        if (IS_CONFIRMED || !file) return;
         const fd = new FormData();
         fd.append('file', file); fd.append('question_id', qId); fd.append('company_id', '{{ company.id }}'); fd.append('year', '{{ year }}');
         fetch('/disclosure/api/evidence', { method: 'POST', body: fd }).then(res => res.json()).then(data => { if (data.success) location.reload(); else alert('업로드 실패: ' + data.message); });
@@ -1029,6 +1174,7 @@
     }
 
     function deleteEvidence(qId, eid) {
+        if (IS_CONFIRMED) return;
         if (confirm('삭제하시겠습니까?')) fetch('/disclosure/api/evidence/' + eid, { method: 'DELETE' }).then(res => res.json()).then(data => { if (data.success) location.reload(); });
     }
 
@@ -1062,7 +1208,7 @@
                         
                         let statusText = '대기';
                         if (item.status === 'completed') statusText = '작성 완료';
-                        else if (item.status === 'in_progress') statusText = '작성중';
+                        else if (item.status === 'in_progress') statusText = '작성 중';
                         
                         opt.textContent = `${item.year}년 [${statusText}]`;
                         if (item.year == currentVal) opt.selected = true;
@@ -1078,7 +1224,7 @@
         const statusArea = document.getElementById('ref-status-area');
         
         if (!year) { 
-            body.innerHTML = '<div class="text-center py-5 text-muted">연도 선택 시 과거 답변 표출</div>'; 
+            body.innerHTML = '<div class="text-center py-5 text-muted">연도를 선택하면 해당 연도의 답변이 표시됩니다.</div>';
             statusArea.style.display = 'none';
             return; 
         }

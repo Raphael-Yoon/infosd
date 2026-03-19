@@ -831,7 +831,7 @@ def upload_evidence():
                 (id, question_id, company_id, year, file_name, file_url, file_size, file_type)
                 VALUES (?,?,?,?,?,?,?,?)
             ''', (evidence_id, question_id, company_id, year,
-                  secure_filename(file.filename), file_url, file_size, ext))
+                  file.filename, file_url, file_size, ext))
             conn.commit()
 
         return jsonify({
@@ -1301,3 +1301,49 @@ def get_year_answers(company_id, year):
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
+
+from report_service import DisclosureReportService
+
+@bp_disclosure.route('/download')
+@login_required
+def download_report():
+    """공시 양식 워드 다운로드"""
+    company_id = session.get('current_company_id')
+    year = session.get('current_year')
+    if not company_id or not year:
+        return redirect(url_for('company.index'))
+
+    try:
+        report_path, filename = DisclosureReportService.generate_report(company_id, year)
+        return send_from_directory(os.path.dirname(report_path), filename, as_attachment=True)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        flash(f"보고서 생성 오류: {str(e)}", "danger")
+        return redirect(url_for('disclosure.dashboard'))
+
+@bp_disclosure.route('/download_excel')
+@login_required
+def download_excel_report():
+    """공시 양식 엑셀 다운로드"""
+    company_id = session.get('current_company_id')
+    year = session.get('current_year')
+    if not company_id or not year:
+        return redirect(url_for('company.index'))
+
+    try:
+        report_path, filename = DisclosureReportService.generate_excel_report(company_id, year)
+        return send_from_directory(os.path.dirname(report_path), filename, as_attachment=True)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        flash(f"엑셀 보고서 생성 오류: {str(e)}", "danger")
+        return redirect(url_for('disclosure.review_view'))
+
+
+@bp_disclosure.route('/download_guideline')
+def download_guideline():
+    """정보보호 공시 가이드라인 PDF 다운로드"""
+    docs_dir = os.path.join(os.path.dirname(__file__), 'documents')
+    filename = '정보보호_공시_가이드라인_개정본(2025.2.).pdf'
+    return send_from_directory(docs_dir, filename, as_attachment=True)

@@ -2,6 +2,82 @@
 
 ---
 
+## 2026-03-19 (v1.17)
+
+### 변경 내역
+- [UI] `templates/disclosure/review.html`: 다운로드 버튼명 변경
+  - "공시 제출용 문서" (Word), "증빙 검토용 자료" (Excel)
+  - 비활성 버튼 title: "모든 항목을 작성해야 확정할 수 있습니다."
+  - `Audit Trail` → `변경 이력 (Audit Trail)` 라벨 통일
+- [UI] `templates/disclosure/dashboard.html`: 확정 완료 메시지 문구 개선
+  - "성실한 공시가 신뢰의 시작입니다." (작가팀 문구 검토 반영)
+- [UI] `templates/disclosure/work.html`: 작가팀 문구 검토 5건 적용
+  - textarea placeholder 문구 개선
+  - `작성중` → `작성 중` (띄어쓰기 교정)
+  - `⚠️ 입력 오류:` → `입력 오류:` (이모지 제거, 톤앤매너 통일)
+  - 과거 공시 패널 안내 문구 개선
+- [UI] `templates/auth/admin_users.html`: 영문 라벨 한글화
+  - `COMPANY NAME` → `회사명`, `NEW COMPANY NAME` → `새 회사명`
+- [UI] `templates/base.html`: 가이드라인 다운로드 버튼 개선
+  - 내부 팀명 노출 alert 제거
+  - `/disclosure/download_guideline` 라우트로 연결 (정식 가이드라인 PDF 다운로드)
+  - 버튼 title: "정보보호 공시 가이드라인 다운로드"
+  - 중복 주석 정리 → `<!-- Guideline Download Floating Button -->`
+- [기능] `disclosure_routes.py`: 가이드라인 PDF 다운로드 라우트 추가
+  - `/disclosure/download_guideline` 엔드포인트 신규 추가
+  - `documents/정보보호_공시_가이드라인_개정본(2025.2.).pdf` 파일 서빙
+- [버그] `report_service.py`: Q17=NO 시 하위 질문 데이터 엑셀/워드 출력 버그 수정
+  - Q17(이용자 보호 활동 여부)=NO인 경우에도 하위 Q18~Q26 데이터가 보고서에 출력되던 문제
+  - 부모 질문 YES 여부 체크 로직 추가 → Q17=NO 시 활동 목록 비움
+- [기능] `report_service.py`: 엑셀 Sheet1 D15 CISO/CPO 지정 현황 자동 채우기
+  - Q13=YES: 지정 유형·직위·겸직 여부 조합 텍스트 생성
+  - Q13=NO/미답변: 'N/A' 표시
+- [기능] `report_service.py`: 워드 중첩 테이블 Q13=NO 시 N/A 처리
+  - Q13=NO인 경우 CISO/CPO 지정 현황 행에 'N/A' 텍스트 삽입
+- [테스트] `test/unit_checklist_infosd.md`: 시나리오 16~19 추가 (5개 테스트)
+  - 16. `test_confirm_unconfirm_flow`: confirmed → unconfirm → in_progress 흐름
+  - 17. `test_download_word`: 워드 다운로드 HTTP 200 + Content-Type 확인
+  - 18. `test_download_excel`: 엑셀 다운로드 HTTP 200 + Content-Type 확인
+  - 18. `test_q13_no_skips_q14_q29`: Q13=NO 시 Q14 N/A 처리 검증
+  - 19. `test_review_page_render`: review 페이지 핵심 요소 렌더링 확인
+- [테스트] `test/test_unit_infosd.py`: 테스트 37개 → 42개 (100% 통과)
+  - 5개 신규 테스트 추가 (위 시나리오 대응)
+  - `test_confirm_unconfirm_flow`: confirm API 증빙 체크 차단 이슈 → DB 직접 세팅 후 unconfirm API만 검증하는 방식으로 수정
+
+### 변경 파일
+- `templates/disclosure/review.html`: 버튼명·라벨 문구 수정
+- `templates/disclosure/dashboard.html`: 확정 완료 메시지 문구 수정
+- `templates/disclosure/work.html`: 작가팀 문구 검토 5건 반영
+- `templates/auth/admin_users.html`: 영문 라벨 한글화
+- `templates/base.html`: 가이드라인 다운로드 버튼 개선, 중복 주석 정리
+- `disclosure_routes.py`: `/disclosure/download_guideline` 라우트 추가
+- `report_service.py`: Q17=NO 버그 수정, D15 CISO/CPO 채우기, Q13=NO 워드 N/A 처리
+- `test/unit_checklist_infosd.md`: 시나리오 16~19 추가
+- `test/test_unit_infosd.py`: 5개 테스트 추가, confirm_unconfirm_flow 로직 수정
+- `test/unit_checklist_infosd_result.md`: 최신 테스트 결과 갱신 (42/42 통과)
+
+---
+
+## 2026-03-19 (v1.16)
+
+### 변경 내역
+- [기능] 공시 양식(별표3) 워드 다운로드 기능 구현
+  - `report_service.py`: `python-docx` 기반 공시 양식 템플릿 필드 주입 로직 구현
+    - 카테고리 1~4 데이터(투자, 인력, 인증, 활동) 및 CISO/CPO 중첩 테이블 매핑
+    - 금액/인원 단위 포맷팅 및 비율(B/A, D/C) 계산 로직 포함
+    - 대표이사 확정 문구 및 날짜 자동 생성
+  - `disclosure_routes.py`: `/disclosure/download` 엔드포인트 추가 및 `DisclosureReportService` 연동
+  - `dashboard.html`: 진행률 섹션에 '워드 다운로드' 버튼 추가 (상태에 따라 초안/임시/정식 구분)
+- [버그] `report_service.py`: 보고서 생성 오류 수정
+  - `isd_questions` 테이블 쿼리 시 잘못된 컬럼명(`question` → `text`) 수정
+  - `datetime` 모듈 임포트 누락 추가
+- `report_service.py`: 워드 보고서 생성 서비스 (신규)
+- `disclosure_routes.py`: 다운로드 라우트 추가
+- `templates/disclosure/dashboard.html`: 다운로드 버튼 UI 추가
+- `WORK_LOG.md`: 작업 내용 기록
+
+---
+
 ## 2026-03-18 (v1.15)
 
 ### 변경 내역

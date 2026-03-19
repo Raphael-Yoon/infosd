@@ -29,7 +29,7 @@
         </div>
         <div>
             <h4 class="fw-bold mb-1" style="letter-spacing: -0.5px;">기업의 든든한 방패를 완성했습니다.</h4>
-            <p class="mb-0 opacity-75 small">정보보호공시 자료가 최종 확정되었습니다. Snowball 플랫폼과 함께 안전한 내일을 만들어갑니다.</p>
+            <p class="mb-0 opacity-75 small">정보보호공시 자료가 최종 확정되었습니다. 성실한 공시가 신뢰의 시작입니다.</p>
         </div>
     </div>
     {% endif %}
@@ -63,17 +63,29 @@
                 <span style="font-weight: 800; color: #3b82f6; font-size: 1.5rem;">{{ overall }}%</span>
                 
                 {% if session and session.status == 'confirmed' %}
-                <a href="/disclosure/review" class="btn btn-primary fw-bold px-4 py-2 rounded-pill shadow-sm" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none;">
-                    확정된 자료 보기 <i class="fas fa-lock ms-2"></i>
-                </a>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('disclosure.download_report') }}" class="btn btn-outline-primary fw-bold px-4 py-2 rounded-pill shadow-sm border-2">
+                        워드 다운로드 <i class="fas fa-file-word ms-2"></i>
+                    </a>
+                    <a href="/disclosure/review" class="btn btn-primary fw-bold px-4 py-2 rounded-pill shadow-sm" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none;">
+                        확정된 자료 보기 <i class="fas fa-lock ms-2"></i>
+                    </a>
+                </div>
                 {% elif overall == 100 %}
-                <a href="/disclosure/review" class="btn btn-primary fw-bold px-4 py-2 rounded-pill shadow-sm" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none;">
-                    확정하기 <i class="fas fa-check ms-2"></i>
-                </a>
+                <div class="d-flex gap-2">
+                    <a href="/disclosure/review" class="btn btn-primary fw-bold px-4 py-2 rounded-pill shadow-sm" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none;">
+                        확정하기 <i class="fas fa-check ms-2"></i>
+                    </a>
+                </div>
                 {% else %}
-                <a href="/disclosure/review" class="btn btn-white fw-bold px-4 py-2 rounded-pill shadow-sm border" style="color: var(--text-main);">
-                    최종 검토 <i class="fas fa-search ms-2 text-primary"></i>
-                </a>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('disclosure.download_report') }}" class="btn btn-outline-secondary fw-bold px-4 py-2 rounded-pill shadow-sm border-2 opacity-75">
+                        초안 다운로드 <i class="fas fa-file-word ms-2"></i>
+                    </a>
+                    <a href="/disclosure/review" class="btn btn-white fw-bold px-4 py-2 rounded-pill shadow-sm border" style="color: var(--text-main);">
+                        최종 검토 <i class="fas fa-search ms-2 text-primary"></i>
+                    </a>
+                </div>
                 {% endif %}
             </div>
         </div>

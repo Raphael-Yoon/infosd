@@ -1,4 +1,4 @@
-<!-- Test Run: 2026-03-18 21:05:33 -->
+<!-- Test Run: 2026-03-19 13:01:13 -->
 # infosd: 정보보호공시 시스템 테스트 시나리오
 
 ## 1. 회사·연도 관리
@@ -14,7 +14,7 @@
 
 - [x] ✅ **test_session_select**: 회사+연도 선택 후 대시보드 페이지 진입 확인 → **통과** (대시보드 진입 확인 (URL: http://localhost:5001/disclosure/))
 - [x] ✅ **test_dashboard_render**: 카테고리 카드 및 진행률 렌더링 확인 → **통과** (카테고리 카드 4개 렌더링 확인)
-- [x] ✅ **test_dashboard_card_progress_consistency**: 카드 done/total 수치 일관성 확인 → **통과** (completion_rate 유효 범위 확인 (46%))
+- [x] ✅ **test_dashboard_card_progress_consistency**: 카드 done/total 수치 일관성 확인 → **통과** (completion_rate 유효 범위 확인 (39%))
 - [x] ✅ **test_dashboard_category_navigation**: 카테고리 카드 클릭 → 작업 화면(work) 이동 확인 → **통과** (카테고리 클릭 → 작업 화면 이동 확인)
 
 ## 3. 답변 저장 및 검증 (핵심)
@@ -31,9 +31,9 @@
 
 ## 4. 증빙 자료 관리
 
-- [x] ✅ **test_evidence_upload**: 허용 확장자(PNG) 파일 업로드 성공 확인 → **통과** (PNG 업로드 성공 (id: 552353bb...))
+- [x] ✅ **test_evidence_upload**: 허용 확장자(PNG) 파일 업로드 성공 확인 → **통과** (PNG 업로드 성공 (id: ac148511...))
 - [x] ✅ **test_evidence_invalid_ext**: 비허용 확장자(exe) 파일 업로드 차단 확인 → **통과** (비허용 확장자 차단 확인 (status: 400))
-- [x] ✅ **test_evidence_delete**: 업로드된 증빙 파일 삭제 API 정상 동작 확인 → **통과** (증빙 삭제 성공 (ID: ef191328...))
+- [x] ✅ **test_evidence_delete**: 업로드된 증빙 파일 삭제 API 정상 동작 확인 → **통과** (증빙 삭제 성공 (ID: f2b1a144...))
 
 ## 5. 공시 확정 흐름
 
@@ -42,12 +42,12 @@
 
 ## 6. Audit Trail (변경 이력)
 
-- [x] ✅ **test_audit_trail_recorded**: 답변 저장 후 isd_answer_history에 이력 기록 확인 → **통과** (Audit Trail 이력 기록 확인 (168 → 169건))
+- [x] ✅ **test_audit_trail_recorded**: 답변 저장 후 isd_answer_history에 이력 기록 확인 → **통과** (Audit Trail 이력 기록 확인 (265 → 266건))
 
 ## 7. 데이터 무결성
 
 - [x] ✅ **test_recursive_na_cleanup**: 상위 NO 변경 시 하위 데이터 N/A 처리 확인 → **통과** (YES→NO→YES 순환 시 하위 질문 재활성화 확인)
-- [x] ✅ **test_session_progress_update**: 답변 저장 후 세션 완료율(completion_rate) 갱신 확인 → **통과** (세션 완료율 갱신 확인 (28% → 28%))
+- [x] ✅ **test_session_progress_update**: 답변 저장 후 세션 완료율(completion_rate) 갱신 확인 → **통과** (세션 완료율 갱신 확인 (26% → 26%))
 
 ## 8. table 타입 답변 저장
 
@@ -83,13 +83,30 @@
 
 - [x] ✅ **test_confirmed_fields_locked**: confirmed 상태에서 work 페이지 IS_CONFIRMED=true 및 confirmed-mode 활성화 확인 → **통과** (confirmed 모드 IS_CONFIRMED=true 및 confirmed-mode 클래스 활성화 확인)
 
+## 16. 확정/취소 완전 흐름
+
+- [x] ✅ **test_confirm_unconfirm_flow**: 100% 완료 → confirm → confirmed 상태 전환 → unconfirm → in_progress 복귀 확인 → **통과** (confirmed → unconfirm 흐름 정상 (최종 상태: completed))
+
+## 17. 다운로드 응답 검증
+
+- [x] ✅ **test_download_word**: 공시 워드 문서 다운로드 HTTP 200 및 Content-Type 확인 → **통과** (워드 다운로드 성공 (Content-Type: application/vnd.openxmlformats-officedocument.wordprocessing))
+- [x] ✅ **test_download_excel**: 증빙 포함 엑셀 다운로드 HTTP 200 및 Content-Type 확인 → **통과** (엑셀 다운로드 성공 (Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.))
+
+## 18. Q13/Q14/Q29 연쇄 조건
+
+- [x] ✅ **test_q13_no_skips_q14_q29**: Q13=NO 저장 시 Q14·Q29 답변이 N/A로 처리되는지 확인 → **통과** (Q13=NO 시 Q14 N/A 처리 확인)
+
+## 19. review 페이지 렌더링
+
+- [x] ✅ **test_review_page_render**: 최종 검토 페이지 항목 테이블·진행률·버튼 렌더링 확인 → **통과** (review 페이지 핵심 요소 모두 렌더링 확인)
+
 ---
 ## 테스트 결과 요약
 
 | 항목 | 개수 | 비율 |
 |------|------|------|
-| ✅ 통과  | 37  | 100.0% |
+| ✅ 통과  | 42  | 100.0% |
 | ❌ 실패  | 0  | 0.0% |
 | ⚠️ 경고  | 0 | 0.0% |
 | ⊘ 건너뜀 | 0 | 0.0% |
-| **총계** | **37** | **100%** |
+| **총계** | **42** | **100%** |

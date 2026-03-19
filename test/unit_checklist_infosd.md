@@ -81,3 +81,20 @@
 ## 15. confirmed 잠금 모드
 
 - [ ] **test_confirmed_fields_locked**: confirmed 상태에서 work 페이지 IS_CONFIRMED=true 및 confirmed-mode 활성화 확인
+
+## 16. 확정/취소 완전 흐름
+
+- [ ] **test_confirm_unconfirm_flow**: 100% 완료 → confirm → confirmed 상태 전환 → unconfirm → in_progress 복귀 확인
+
+## 17. 다운로드 응답 검증
+
+- [ ] **test_download_word**: 공시 워드 문서 다운로드 HTTP 200 및 Content-Type 확인
+- [ ] **test_download_excel**: 증빙 포함 엑셀 다운로드 HTTP 200 및 Content-Type 확인
+
+## 18. Q13/Q14/Q29 연쇄 조건
+
+- [ ] **test_q13_no_skips_q14_q29**: Q13=NO 저장 시 Q14·Q29 답변이 N/A로 처리되는지 확인
+
+## 19. review 페이지 렌더링
+
+- [ ] **test_review_page_render**: 최종 검토 페이지 항목 테이블·진행률·버튼 렌더링 확인

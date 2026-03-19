@@ -21,7 +21,7 @@
             <i class="fas fa-th-large text-primary"></i> 대시보드로
         </a>
         <a href="{{ url_for('disclosure.history_view', company_id=company.id, year=year) }}" class="btn btn-white shadow-sm rounded-pill px-4 py-2 fw-bold border d-inline-flex align-items-center gap-2">
-            <i class="fas fa-history text-secondary"></i> Audit Trail
+            <i class="fas fa-history text-secondary"></i> 변경 이력 (Audit Trail)
         </a>
     </div>
     
@@ -42,19 +42,19 @@
                 <i class="fas fa-undo me-2"></i>확정 취소
             </button>
         </form>
-        <button class="btn btn-premium-action px-4 py-2 rounded-pill shadow-sm fw-bold" onclick="alert('공시 자료 생성 기능을 준비 중입니다. 곧 제공될 예정입니다.')">
-            <i class="fas fa-file-export me-2"></i>공시 자료 생성
-        </button>
+        <a href="{{ url_for('disclosure.download_report') }}" class="btn btn-premium-action px-4 py-2 rounded-pill shadow-sm fw-bold">
+            <i class="fas fa-file-word me-2"></i>공시 제출용 문서
+        </a>
+        <a href="{{ url_for('disclosure.download_excel_report') }}" class="btn btn-white shadow-sm rounded-pill px-4 py-2 fw-bold border">
+            <i class="fas fa-file-excel text-success me-2"></i>증빙 검토용 자료
+        </a>
         {% else %}
         <form action="/disclosure/confirm" method="post" onsubmit="return confirm('최종적으로 공시 자료를 확정하시겠습니까? 확정 후에는 내용 수정이 제한됩니다.')">
-            <button type="submit" class="btn btn-premium-action px-4 py-2 rounded-pill shadow-sm fw-bold" {% if overall < 100 %}disabled title="100% 작성 시 가능"{% endif %}>
+            <button type="submit" class="btn btn-premium-action px-4 py-2 rounded-pill shadow-sm fw-bold" {% if overall < 100 %}disabled title="모든 항목을 작성해야 확정할 수 있습니다."{% endif %}>
                 <i class="fas fa-lock me-2"></i>공시 자료 확정 (Confirm)
             </button>
         </form>
         {% endif %}
-        <button class="btn btn-white shadow-sm rounded-pill px-4 py-2 fw-bold border" onclick="alert('공시 양식이 확정되지 않아 엑셀 다운로드가 임시 유보되었습니다.')">
-            <i class="fas fa-file-excel text-success me-2"></i>Raw 데이터 (Excel)
-        </button>
     </div>
 </div>
 
@@ -88,24 +88,26 @@
                 <tr>
                     <th class="ps-4 py-3" style="width: 80px; color: var(--text-muted);">ID</th>
                     <th class="py-3" style="color: var(--text-muted);">공시 항목 설명</th>
-                    <th class="py-3" style="width: 260px; color: var(--text-muted);">작성 내용</th>
+                    <th class="py-3" style="min-width: 260px; color: var(--text-muted);">작성 내용</th>
                     <th class="py-3 text-center" style="width: 120px; color: var(--text-muted);">증빙</th>
                 </tr>
             </thead>
             <tbody>
                 {% for q_id, q in questions.items() %}
-                {% if q.is_active and answers.get(q_id) != 'N/A' %}
+                {% if q.is_active and not q.is_none_hidden and answers.get(q_id) != 'N/A' %}
                 <tr
-                    class="{% if q_id not in answers %}border-start border-4 border-danger{% elif q.evidence_list and not (q_id in evidence and evidence[q_id]) %}border-start border-4 border-warning{% else %}border-start border-4 border-success{% endif %}">
+                    class="{% if q_id not in answers %}border-start border-4 border-danger{% elif q.evidence_list and not q.is_all_none and not (q_id in evidence and evidence[q_id]) %}border-start border-4 border-warning{% else %}border-start border-4 border-success{% endif %}">
                     <td class="ps-4" style="padding-left: {{ 1.5 + (q.level - 1) * 1.25 }}rem !important;">
-                        <span class="badge border px-2 py-1" style="background: var(--bg-main); color: var(--text-muted);">{{ q.display_number or q_id }}</span>
+                        <a href="/disclosure/work?category={{ q.category_id }}#card-{{ q_id }}" class="badge border px-2 py-1 text-decoration-none" style="background: var(--bg-main); color: var(--text-muted);">{{ q.display_number or q_id }}</a>
                     </td>
                     <td>
-                        <div class="fw-bold mb-1" style="color: var(--text-main); margin-left: {{ (q.level - 1) * 15 }}px;">
+                        <div class="fw-bold mb-1" style="margin-left: {{ (q.level - 1) * 15 }}px;">
                             {% if q.level > 1 %}
                             <i class="fas fa-reply fa-rotate-180 text-muted me-2" style="font-size: 0.75rem; opacity: 0.6;"></i>
                             {% endif %}
-                            {{ q.text | truncate(70) }}
+                            <a href="/disclosure/work?category={{ q.category_id }}#card-{{ q_id }}" class="text-decoration-none" style="color: var(--text-main);">
+                                {{ q.text | truncate(70) }}
+                            </a>
                         </div>
                         <div class="d-flex align-items-center gap-2 small" style="margin-left: {{ (q.level - 1) * 15 }}px;">
                             <span class="text-primary fw-bold">{{ q.category_name }}</span>
@@ -117,11 +119,11 @@
                             {% set grid_data = answers[q_id] | from_json_or_default %}
                             {% if grid_data and grid_data is iterable and grid_data | length > 0 %}
                                 <div class="table-responsive rounded-2 border shadow-sm">
-                                    <table class="table table-sm mb-0 small" style="background: var(--bg-surface);">
+                                    <table class="table table-sm mb-0 small" style="background: var(--bg-surface); width: max-content; min-width: 100%;">
                                         <thead style="background: var(--bg-main);">
                                             <tr>
                                                 {% for key in grid_data[0].keys() %}
-                                                <th class="px-2 py-1 border-0" style="color: var(--text-muted); font-size: 0.75rem;">{{ key }}</th>
+                                                <th class="px-2 py-1 border-0" style="color: var(--text-muted); font-size: 0.75rem; white-space: nowrap;">{{ q.col_label_map.get(key, key) }}</th>
                                                 {% endfor %}
                                             </tr>
                                         </thead>
@@ -129,7 +131,7 @@
                                             {% for row in grid_data %}
                                             <tr class="border-top">
                                                 {% for key, val in row.items() %}
-                                                <td class="px-2 py-1 border-0" style="color: var(--text-main);">{{ val | comma }}</td>
+                                                <td class="px-2 py-1 border-0" style="color: var(--text-main); white-space: nowrap;">{{ val | comma }}</td>
                                                 {% endfor %}
                                             </tr>
                                             {% endfor %}
@@ -158,7 +160,7 @@
                             <i class="fas fa-search me-1"></i> {{ ev.file_name }}
                         </a>
                         {% endfor %}
-                        {% elif q.evidence_list and q_id in answers %}
+                        {% elif q.evidence_list and q_id in answers and not q.is_all_none %}
                         <a href="/disclosure/work?category={{ q.category_id }}#ev-section-{{ q_id }}" class="badge px-2 py-1 fw-bold text-decoration-none" style="background: #f59e0b; color: #1a1a1a; border: 1px solid #d97706;">
                             <i class="fas fa-exclamation-triangle me-1"></i> 증빙 필요
                         </a>
@@ -174,14 +176,6 @@
     </div>
 </div>
 
-    <!-- 알림 안내 -->
-    <div class="help-text d-flex align-items-center gap-3 p-4 mb-5" style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 12px;">
-        <i class="fas fa-shield-alt fa-2x opacity-20" style="color: var(--text-muted);"></i>
-        <div>
-            <h6 class="fw-bold mb-1" style="color: var(--text-main);">확정 전 주의사항</h6>
-            <p class="mb-0 small opacity-80" style="color: var(--text-muted);">확정 전 모든 수치가 증빙 자료와 일치하는지 확인하세요. 확정 후에는 수정이 불가합니다.</p>
-        </div>
-    </div>
 </div>
 
 <!-- Inline Evidence Viewer Modal -->

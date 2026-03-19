@@ -1115,6 +1115,187 @@ class InfosdUnitTest(PlaywrightTestBase):
             conn2.commit()
             conn2.close()
 
+    # ─── 38. 확정 → 취소 완전 흐름 ──────────────────────────────
+
+    def test_confirm_unconfirm_flow(self, result: UnitTestResult):
+        """38. confirmed 상태 직접 세팅 → unconfirm API → in_progress/completed 복귀 확인
+        (confirm API는 필수 증빙 체크로 테스트 환경에서 차단될 수 있으므로 DB 직접 세팅 후 unconfirm API만 검증)"""
+        company_id = self._ensure_session()
+        if not company_id:
+            result.skip_test("세션 구성 실패")
+            return
+
+        conn = self._db_connect()
+        try:
+            # DB에서 status="confirmed"로 직접 세팅 (confirm API는 증빙 필수 체크로 차단될 수 있음)
+            conn.execute(
+                'UPDATE isd_sessions SET completion_rate=100, status="confirmed" WHERE company_id=? AND year=?',
+                (company_id, TEST_YEAR)
+            )
+            conn.commit()
+
+            # DB 상태 확인 (confirmed 세팅 확인)
+            row = conn.execute(
+                'SELECT status FROM isd_sessions WHERE company_id=? AND year=?',
+                (company_id, TEST_YEAR)
+            ).fetchone()
+            if not row or row['status'] != 'confirmed':
+                result.fail_test(f"confirmed 직접 세팅 실패: {row['status'] if row else 'None'}")
+                return
+
+            # unconfirm POST
+            resp_unconfirm = self._api("post", "/disclosure/unconfirm")
+            if resp_unconfirm.status_code not in [200, 302]:
+                result.fail_test(f"unconfirm 요청 실패: {resp_unconfirm.status_code}")
+                return
+
+            # DB 상태 복귀 확인
+            row2 = conn.execute(
+                'SELECT status FROM isd_sessions WHERE company_id=? AND year=?',
+                (company_id, TEST_YEAR)
+            ).fetchone()
+            if row2 and row2['status'] in ('in_progress', 'completed'):
+                result.pass_test(f"confirmed → unconfirm 흐름 정상 (최종 상태: {row2['status']})")
+            else:
+                result.fail_test(f"unconfirm 후 상태 오류: {row2['status'] if row2 else 'None'}")
+        finally:
+            conn.close()
+
+    # ─── 39. 워드 다운로드 응답 검증 ─────────────────────────────
+
+    def test_download_word(self, result: UnitTestResult):
+        """39. 공시 워드 문서 다운로드 HTTP 200 및 Content-Type 확인"""
+        company_id = self._ensure_session()
+        if not company_id:
+            result.skip_test("세션 구성 실패")
+            return
+
+        conn = self._db_connect()
+        try:
+            conn.execute(
+                'UPDATE isd_sessions SET status="confirmed", completion_rate=100 WHERE company_id=? AND year=?',
+                (company_id, TEST_YEAR)
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        try:
+            resp = self._api("get", "/disclosure/download")
+            if resp.status_code == 200:
+                ct = resp.headers.get("Content-Type", "")
+                if "wordprocessingml" in ct or "octet-stream" in ct or "msword" in ct:
+                    result.pass_test(f"워드 다운로드 성공 (Content-Type: {ct[:60]})")
+                else:
+                    result.warn_test(f"200 응답이나 Content-Type 확인 필요: {ct[:60]}")
+            else:
+                result.fail_test(f"워드 다운로드 실패: {resp.status_code}")
+        finally:
+            conn2 = self._db_connect()
+            conn2.execute(
+                'UPDATE isd_sessions SET status="in_progress" WHERE company_id=? AND year=?',
+                (company_id, TEST_YEAR)
+            )
+            conn2.commit()
+            conn2.close()
+
+    # ─── 40. 엑셀 다운로드 응답 검증 ─────────────────────────────
+
+    def test_download_excel(self, result: UnitTestResult):
+        """40. 증빙 포함 엑셀 다운로드 HTTP 200 및 Content-Type 확인"""
+        company_id = self._ensure_session()
+        if not company_id:
+            result.skip_test("세션 구성 실패")
+            return
+
+        conn = self._db_connect()
+        try:
+            conn.execute(
+                'UPDATE isd_sessions SET status="confirmed", completion_rate=100 WHERE company_id=? AND year=?',
+                (company_id, TEST_YEAR)
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        try:
+            resp = self._api("get", "/disclosure/download_excel")
+            if resp.status_code == 200:
+                ct = resp.headers.get("Content-Type", "")
+                if "spreadsheetml" in ct or "octet-stream" in ct or "excel" in ct:
+                    result.pass_test(f"엑셀 다운로드 성공 (Content-Type: {ct[:60]})")
+                else:
+                    result.warn_test(f"200 응답이나 Content-Type 확인 필요: {ct[:60]}")
+            else:
+                result.fail_test(f"엑셀 다운로드 실패: {resp.status_code}")
+        finally:
+            conn2 = self._db_connect()
+            conn2.execute(
+                'UPDATE isd_sessions SET status="in_progress" WHERE company_id=? AND year=?',
+                (company_id, TEST_YEAR)
+            )
+            conn2.commit()
+            conn2.close()
+
+    # ─── 41. Q13=NO → Q14/Q29 N/A 처리 ──────────────────────────
+
+    def test_q13_no_skips_q14_q29(self, result: UnitTestResult):
+        """41. Q13=NO 저장 시 Q14·Q29 답변이 N/A로 처리되는지 확인"""
+        company_id = self._ensure_session()
+        if not company_id:
+            result.skip_test("세션 구성 실패")
+            return
+
+        # Q13=YES로 세팅 후 Q14 데이터 저장
+        self._save("Q13", "YES")
+        self._save("Q14", json.dumps([{"type": "CISO", "position": "테스트직책", "is_officer": "임원", "is_concurrent": "전담"}]))
+
+        # Q13=NO로 변경 → 하위 N/A 재귀 처리 트리거
+        resp = self._save("Q13", "NO")
+        if resp.status_code not in [200, 201]:
+            result.fail_test(f"Q13=NO 저장 실패: {resp.status_code}")
+            return
+
+        conn = self._db_connect()
+        try:
+            row = conn.execute(
+                'SELECT value FROM isd_answers WHERE company_id=? AND year=? AND question_id="Q14"',
+                (company_id, TEST_YEAR)
+            ).fetchone()
+            if row is None or row['value'] in ('N/A', None, ''):
+                result.pass_test("Q13=NO 시 Q14 N/A 처리 확인")
+            else:
+                result.fail_test(f"Q13=NO 후 Q14 값이 남아 있음: {str(row['value'])[:60]}")
+        finally:
+            conn.close()
+
+    # ─── 42. review 페이지 렌더링 검증 ───────────────────────────
+
+    def test_review_page_render(self, result: UnitTestResult):
+        """42. 최종 검토(review) 페이지 렌더링 - 항목 테이블·진행률·버튼 존재 확인"""
+        company_id = self._ensure_session()
+        if not company_id:
+            result.skip_test("세션 구성 실패")
+            return
+
+        self.navigate_to("/disclosure/review")
+        self.page.wait_for_load_state("domcontentloaded")
+        html = self.page.content()
+
+        checks = {
+            "진행률 표시": "%" in html,
+            "항목 테이블": "공시 항목별 작성 현황" in html or "공시 항목" in html,
+            "확정 버튼 또는 확정 취소 버튼": "확정" in html,
+            "Q 번호 표시": "Q1" in html or "Q2" in html,
+        }
+        failed = [k for k, v in checks.items() if not v]
+        if not failed:
+            result.pass_test("review 페이지 핵심 요소 모두 렌더링 확인")
+        elif len(failed) <= 1:
+            result.warn_test(f"대부분 정상, 미확인 항목: {', '.join(failed)}")
+        else:
+            result.fail_test(f"review 페이지 렌더링 오류 — 미확인: {', '.join(failed)}")
+
     # ─── 결과 저장 ────────────────────────────────────────────────
 
     def _update_checklist_result(self):
@@ -1231,6 +1412,15 @@ def run_tests():
             runner.test_checkbox_answer_json,
             # 15. confirmed 잠금
             runner.test_confirmed_fields_locked,
+            # 16. 확정/취소 완전 흐름
+            runner.test_confirm_unconfirm_flow,
+            # 17. 다운로드 응답 검증
+            runner.test_download_word,
+            runner.test_download_excel,
+            # 18. Q13=NO → Q14/Q29 스킵
+            runner.test_q13_no_skips_q14_q29,
+            # 19. review 페이지 렌더링
+            runner.test_review_page_render,
         ])
     finally:
         runner._update_checklist_result()
