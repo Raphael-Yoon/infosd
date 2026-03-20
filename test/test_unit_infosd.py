@@ -1296,6 +1296,61 @@ class InfosdUnitTest(PlaywrightTestBase):
         else:
             result.fail_test(f"review 페이지 렌더링 오류 — 미확인: {', '.join(failed)}")
 
+    # ─── 43. 투어 페이지 렌더링 ─────────────────────────────────
+
+    def test_tour_page_render(self, result: UnitTestResult):
+        """43. 투어 페이지 비로그인 접근 및 핵심 요소 렌더링 확인"""
+        self.navigate_to("/tour")
+        self.page.wait_for_load_state("domcontentloaded")
+        html = self.page.content()
+
+        checks = {
+            "페이지 로드 성공": "/tour" in self.page.url and "login" not in self.page.url,
+            "핵심 콘텐츠 존재": any(kw in html for kw in ["투어", "tour", "정보보호", "공시", "기능"]),
+        }
+        failed = [k for k, v in checks.items() if not v]
+        if not failed:
+            result.pass_test("투어 페이지 렌더링 및 핵심 요소 확인")
+        else:
+            result.fail_test(f"투어 페이지 렌더링 오류 — 미확인: {', '.join(failed)}")
+
+    # ─── 44. 컨택 페이지 렌더링 및 유효성 검증 ───────────────────
+
+    def test_contact_page_render(self, result: UnitTestResult):
+        """44. 컨택 페이지 렌더링 및 필수 입력 누락·URL 포함 유효성 검증"""
+        # GET — 폼 렌더링
+        self.navigate_to("/contact")
+        self.page.wait_for_load_state("domcontentloaded")
+        html = self.page.content()
+
+        if not any(kw in html for kw in ["contact", "문의", "이메일", "email"]):
+            result.fail_test("컨택 페이지 렌더링 실패 — 폼 요소 미발견")
+            return
+
+        # POST — 필수 항목 누락 검증 (name·email·message 모두 공백)
+        resp = self._api("post", "/contact", data={
+            "name": "", "email": "", "message": "", "company_name": "", "form_token": ""
+        })
+        missing_blocked = resp.status_code == 200 and any(
+            kw in resp.text for kw in ["필수", "오류", "error", "잘못된"]
+        )
+
+        # POST — 메시지에 URL 포함 검증
+        resp2 = self._api("post", "/contact", data={
+            "name": "테스트", "email": "test@test.com",
+            "message": "문의합니다 https://spam.com", "company_name": "", "form_token": ""
+        })
+        url_blocked = resp2.status_code == 200 and any(
+            kw in resp2.text for kw in ["URL", "url", "포함", "오류", "잘못된"]
+        )
+
+        if missing_blocked and url_blocked:
+            result.pass_test("컨택 페이지 렌더링·필수항목 누락·URL 포함 검증 모두 통과")
+        elif missing_blocked or url_blocked:
+            result.warn_test(f"일부 검증만 통과 — 누락차단:{missing_blocked}, URL차단:{url_blocked}")
+        else:
+            result.fail_test("컨택 페이지 유효성 검증 실패")
+
     # ─── 결과 저장 ────────────────────────────────────────────────
 
     def _update_checklist_result(self):
@@ -1421,6 +1476,9 @@ def run_tests():
             runner.test_q13_no_skips_q14_q29,
             # 19. review 페이지 렌더링
             runner.test_review_page_render,
+            # 20. 투어·컨택 페이지
+            runner.test_tour_page_render,
+            runner.test_contact_page_render,
         ])
     finally:
         runner._update_checklist_result()

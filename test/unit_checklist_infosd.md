@@ -98,3 +98,8 @@
 ## 19. review 페이지 렌더링
 
 - [ ] **test_review_page_render**: 최종 검토 페이지 항목 테이블·진행률·버튼 렌더링 확인
+
+## 20. 투어·컨택 페이지
+
+- [ ] **test_tour_page_render**: 투어 페이지 비로그인 접근 및 핵심 콘텐츠 렌더링 확인
+- [ ] **test_contact_page_render**: 컨택 페이지 렌더링·필수항목 누락·URL 포함 유효성 검증
