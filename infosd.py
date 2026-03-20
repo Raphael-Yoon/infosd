@@ -7,8 +7,6 @@ import hashlib
 import time
 import json
 from flask import Flask, render_template, jsonify
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from pathlib import Path
 import os
 
@@ -34,8 +32,6 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
 )
 app.jinja_env.auto_reload = True
-
-limiter = Limiter(get_remote_address, app=app, default_limits=[])
 
 
 @app.context_processor
