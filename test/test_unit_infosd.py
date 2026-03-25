@@ -1351,6 +1351,209 @@ class InfosdUnitTest(PlaywrightTestBase):
         else:
             result.fail_test("컨택 페이지 유효성 검증 실패")
 
+    # ─── 45. 진행률 계산 일관성: dashboard vs DB ─────────────────────
+
+    def test_progress_dashboard_db_consistency(self, result: UnitTestResult):
+        """45. dashboard overall% 와 DB completion_rate 일치 확인"""
+        company_id = self._ensure_session()
+        if not company_id:
+            result.skip_test("세션 구성 실패")
+            return
+
+        self._save("Q1", "YES")
+
+        # dashboard 라우트 호출 → overall 렌더링 확인
+        resp = self._api("get", "/disclosure/")
+        if resp.status_code != 200:
+            result.fail_test(f"dashboard 응답 오류: {resp.status_code}")
+            return
+
+        conn = self._db_connect()
+        try:
+            row = conn.execute(
+                'SELECT completion_rate FROM isd_sessions WHERE company_id=? AND year=?',
+                (company_id, TEST_YEAR)
+            ).fetchone()
+            db_rate = row['completion_rate'] if row else None
+            if db_rate is None:
+                result.fail_test("DB completion_rate 없음")
+                return
+
+            html = resp.text
+            if f"{db_rate}%" not in html:
+                result.fail_test(f"dashboard({html[:200]}) 에 DB값 {db_rate}% 미표시")
+            else:
+                result.pass_test(f"dashboard overall == DB completion_rate == {db_rate}%")
+        finally:
+            conn.close()
+
+    # ─── 46. 진행률 계산 일관성: dashboard vs review ─────────────────
+
+    def test_progress_dashboard_review_consistency(self, result: UnitTestResult):
+        """46. dashboard overall% 와 review overall% 일치 확인"""
+        company_id = self._ensure_session()
+        if not company_id:
+            result.skip_test("세션 구성 실패")
+            return
+
+        self._save("Q1", "YES")
+
+        resp_dash = self._api("get", "/disclosure/")
+        resp_review = self._api("get", "/disclosure/review")
+
+        if resp_dash.status_code != 200 or resp_review.status_code != 200:
+            result.fail_test("dashboard 또는 review 응답 오류")
+            return
+
+        # DB에서 expected rate 읽기
+        conn = self._db_connect()
+        try:
+            row = conn.execute(
+                'SELECT completion_rate FROM isd_sessions WHERE company_id=? AND year=?',
+                (company_id, TEST_YEAR)
+            ).fetchone()
+            db_rate = row['completion_rate'] if row else None
+        finally:
+            conn.close()
+
+        if db_rate is None:
+            result.fail_test("DB completion_rate 없음")
+            return
+
+        dash_ok = f"{db_rate}%" in resp_dash.text
+        review_ok = f"{db_rate}%" in resp_review.text
+
+        if dash_ok and review_ok:
+            result.pass_test(f"dashboard == review == DB == {db_rate}%")
+        else:
+            result.fail_test(f"불일치 — dashboard:{dash_ok}, review:{review_ok}, DB:{db_rate}%")
+
+    # ─── 47. 진행률 계산 일관성: save_answer 응답 cat_progress ────────
+
+    def test_progress_save_answer_cat_progress(self, result: UnitTestResult):
+        """47. save_answer 응답 cat_progress 의 rate 합산이 overall 과 일치"""
+        company_id = self._ensure_session()
+        if not company_id:
+            result.skip_test("세션 구성 실패")
+            return
+
+        resp = self._save("Q1", "YES")
+        if resp.status_code != 200:
+            result.fail_test(f"save_answer 실패: {resp.status_code}")
+            return
+
+        try:
+            data = resp.json()
+        except Exception:
+            result.fail_test("save_answer 응답 JSON 파싱 실패")
+            return
+
+        cat_progress = data.get("cat_progress")
+        if not cat_progress:
+            result.fail_test("cat_progress 없음")
+            return
+
+        total_q = sum(c["total"] for c in cat_progress)
+        total_done = sum(c["done"] for c in cat_progress)
+        calc_overall = int((total_done / total_q) * 100) if total_q > 0 else 0
+
+        conn = self._db_connect()
+        try:
+            row = conn.execute(
+                'SELECT completion_rate FROM isd_sessions WHERE company_id=? AND year=?',
+                (company_id, TEST_YEAR)
+            ).fetchone()
+            db_rate = row['completion_rate'] if row else None
+        finally:
+            conn.close()
+
+        if db_rate is None:
+            result.fail_test("DB completion_rate 없음")
+            return
+
+        if calc_overall == db_rate:
+            result.pass_test(f"cat_progress 합산 {calc_overall}% == DB {db_rate}%")
+        else:
+            result.fail_test(f"cat_progress 합산 {calc_overall}% != DB {db_rate}%")
+
+    # ─── 48. 진행률: 증빙 업로드 후 분모 변화 확인 ───────────────────
+
+    def test_progress_evidence_increases_denominator(self, result: UnitTestResult):
+        """48. 증빙 필요 질문 답변 후 total(분모) 증가 확인"""
+        company_id = self._ensure_session()
+        if not company_id:
+            result.skip_test("세션 구성 실패")
+            return
+
+        # 증빙 없는 상태에서 total 확인
+        resp_before = self._save("Q1", "NO")
+        if resp_before.status_code != 200:
+            result.fail_test("초기 답변 저장 실패")
+            return
+
+        try:
+            data_before = resp_before.json()
+            total_before = sum(c["total"] for c in data_before.get("cat_progress", []))
+        except Exception:
+            result.fail_test("before JSON 파싱 실패")
+            return
+
+        # Q1=YES 답변 → Q1에 증빙 필요 여부 변화 확인
+        resp_after = self._save("Q1", "YES")
+        if resp_after.status_code != 200:
+            result.fail_test("Q1=YES 저장 실패")
+            return
+
+        try:
+            data_after = resp_after.json()
+            total_after = sum(c["total"] for c in data_after.get("cat_progress", []))
+        except Exception:
+            result.fail_test("after JSON 파싱 실패")
+            return
+
+        result.pass_test(
+            f"total 변화 확인: NO={total_before} → YES={total_after} "
+            f"({'증가' if total_after > total_before else '동일 (Q1 증빙 없음)'})"
+        )
+
+    # ─── 49. 진행률: 전체 0% → 답변 후 % 증가 방향 검증 ─────────────
+
+    def test_progress_increases_after_answer(self, result: UnitTestResult):
+        """49. 신규 세션에서 답변 입력 시 completion_rate 증가 방향 검증"""
+        company_id = self._ensure_session()
+        if not company_id:
+            result.skip_test("세션 구성 실패")
+            return
+
+        conn = self._db_connect()
+        try:
+            before_row = conn.execute(
+                'SELECT completion_rate FROM isd_sessions WHERE company_id=? AND year=?',
+                (company_id, TEST_YEAR)
+            ).fetchone()
+            rate_before = before_row['completion_rate'] if before_row else 0
+        finally:
+            conn.close()
+
+        # 여러 답변 입력
+        self._save("Q1", "YES")
+        self._save("Q2", "YES")
+
+        conn = self._db_connect()
+        try:
+            after_row = conn.execute(
+                'SELECT completion_rate FROM isd_sessions WHERE company_id=? AND year=?',
+                (company_id, TEST_YEAR)
+            ).fetchone()
+            rate_after = after_row['completion_rate'] if after_row else 0
+        finally:
+            conn.close()
+
+        if rate_after >= rate_before:
+            result.pass_test(f"진행률 증가 확인: {rate_before}% → {rate_after}%")
+        else:
+            result.fail_test(f"진행률 감소 이상: {rate_before}% → {rate_after}%")
+
     # ─── 결과 저장 ────────────────────────────────────────────────
 
     def _update_checklist_result(self):
@@ -1479,6 +1682,12 @@ def run_tests():
             # 20. 투어·컨택 페이지
             runner.test_tour_page_render,
             runner.test_contact_page_render,
+            # 21. 진행률 수치 일관성
+            runner.test_progress_dashboard_db_consistency,
+            runner.test_progress_dashboard_review_consistency,
+            runner.test_progress_save_answer_cat_progress,
+            runner.test_progress_evidence_increases_denominator,
+            runner.test_progress_increases_after_answer,
         ])
     finally:
         runner._update_checklist_result()

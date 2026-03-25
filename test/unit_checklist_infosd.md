@@ -103,3 +103,12 @@
 
 - [ ] **test_tour_page_render**: 투어 페이지 비로그인 접근 및 핵심 콘텐츠 렌더링 확인
 - [ ] **test_contact_page_render**: 컨택 페이지 렌더링·필수항목 누락·URL 포함 유효성 검증
+
+
+## 21. 진행률 수치 일관성
+
+- [ ] **test_progress_dashboard_db_consistency**: dashboard overall% 와 DB completion_rate 일치 확인
+- [ ] **test_progress_dashboard_review_consistency**: dashboard overall% 와 review overall% 일치 확인
+- [ ] **test_progress_save_answer_cat_progress**: save_answer 응답 cat_progress 합산이 DB overall 과 일치
+- [ ] **test_progress_evidence_increases_denominator**: 증빙 필요 질문 답변 후 total(분모) 변화 확인
+- [ ] **test_progress_increases_after_answer**: 답변 입력 시 completion_rate 증가 방향 검증

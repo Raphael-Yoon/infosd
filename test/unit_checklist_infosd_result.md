@@ -1,4 +1,4 @@
-<!-- Test Run: 2026-03-20 10:07:56 -->
+<!-- Test Run: 2026-03-24 18:18:09 -->
 # infosd: 정보보호공시 시스템 테스트 시나리오
 
 ## 1. 회사·연도 관리
@@ -14,7 +14,7 @@
 
 - [x] ✅ **test_session_select**: 회사+연도 선택 후 대시보드 페이지 진입 확인 → **통과** (대시보드 진입 확인 (URL: http://localhost:5001/disclosure/))
 - [x] ✅ **test_dashboard_render**: 카테고리 카드 및 진행률 렌더링 확인 → **통과** (카테고리 카드 4개 렌더링 확인)
-- [x] ✅ **test_dashboard_card_progress_consistency**: 카드 done/total 수치 일관성 확인 → **통과** (completion_rate 유효 범위 확인 (39%))
+- [x] ✅ **test_dashboard_card_progress_consistency**: 카드 done/total 수치 일관성 확인 → **통과** (completion_rate 유효 범위 확인 (31%))
 - [x] ✅ **test_dashboard_category_navigation**: 카테고리 카드 클릭 → 작업 화면(work) 이동 확인 → **통과** (카테고리 클릭 → 작업 화면 이동 확인)
 
 ## 3. 답변 저장 및 검증 (핵심)
@@ -31,9 +31,9 @@
 
 ## 4. 증빙 자료 관리
 
-- [x] ✅ **test_evidence_upload**: 허용 확장자(PNG) 파일 업로드 성공 확인 → **통과** (PNG 업로드 성공 (id: 73b9601e...))
+- [x] ✅ **test_evidence_upload**: 허용 확장자(PNG) 파일 업로드 성공 확인 → **통과** (PNG 업로드 성공 (id: 63f1ee18...))
 - [x] ✅ **test_evidence_invalid_ext**: 비허용 확장자(exe) 파일 업로드 차단 확인 → **통과** (비허용 확장자 차단 확인 (status: 400))
-- [x] ✅ **test_evidence_delete**: 업로드된 증빙 파일 삭제 API 정상 동작 확인 → **통과** (증빙 삭제 성공 (ID: a911d3e4...))
+- [x] ✅ **test_evidence_delete**: 업로드된 증빙 파일 삭제 API 정상 동작 확인 → **통과** (증빙 삭제 성공 (ID: 67df3b7b...))
 
 ## 5. 공시 확정 흐름
 
@@ -42,12 +42,12 @@
 
 ## 6. Audit Trail (변경 이력)
 
-- [x] ✅ **test_audit_trail_recorded**: 답변 저장 후 isd_answer_history에 이력 기록 확인 → **통과** (Audit Trail 이력 기록 확인 (413 → 414건))
+- [x] ✅ **test_audit_trail_recorded**: 답변 저장 후 isd_answer_history에 이력 기록 확인 → **통과** (Audit Trail 이력 기록 확인 (422 → 423건))
 
 ## 7. 데이터 무결성
 
 - [x] ✅ **test_recursive_na_cleanup**: 상위 NO 변경 시 하위 데이터 N/A 처리 확인 → **통과** (YES→NO→YES 순환 시 하위 질문 재활성화 확인)
-- [x] ✅ **test_session_progress_update**: 답변 저장 후 세션 완료율(completion_rate) 갱신 확인 → **통과** (세션 완료율 갱신 확인 (26% → 26%))
+- [x] ✅ **test_session_progress_update**: 답변 저장 후 세션 완료율(completion_rate) 갱신 확인 → **통과** (세션 완료율 갱신 확인 (25% → 25%))
 
 ## 8. table 타입 답변 저장
 
@@ -105,13 +105,22 @@
 - [x] ✅ **test_tour_page_render**: 투어 페이지 비로그인 접근 및 핵심 콘텐츠 렌더링 확인 → **통과** (투어 페이지 렌더링 및 핵심 요소 확인)
 - [x] ✅ **test_contact_page_render**: 컨택 페이지 렌더링·필수항목 누락·URL 포함 유효성 검증 → **통과** (컨택 페이지 렌더링·필수항목 누락·URL 포함 검증 모두 통과)
 
+
+## 21. 진행률 수치 일관성
+
+- [x] ✅ **test_progress_dashboard_db_consistency**: dashboard overall% 와 DB completion_rate 일치 확인 → **통과** (dashboard overall == DB completion_rate == 39%)
+- [x] ✅ **test_progress_dashboard_review_consistency**: dashboard overall% 와 review overall% 일치 확인 → **통과** (dashboard == review == DB == 39%)
+- [x] ✅ **test_progress_save_answer_cat_progress**: save_answer 응답 cat_progress 합산이 DB overall 과 일치 → **통과** (cat_progress 합산 39% == DB 39%)
+- [x] ✅ **test_progress_evidence_increases_denominator**: 증빙 필요 질문 답변 후 total(분모) 변화 확인 → **통과** (total 변화 확인: NO=26 → YES=31 (증가))
+- [x] ✅ **test_progress_increases_after_answer**: 답변 입력 시 completion_rate 증가 방향 검증 → **통과** (진행률 증가 확인: 25% → 31%)
+
 ---
 ## 테스트 결과 요약
 
 | 항목 | 개수 | 비율 |
 |------|------|------|
-| ✅ 통과  | 44  | 100.0% |
+| ✅ 통과  | 49  | 100.0% |
 | ❌ 실패  | 0  | 0.0% |
 | ⚠️ 경고  | 0 | 0.0% |
 | ⊘ 건너뜀 | 0 | 0.0% |
-| **총계** | **44** | **100%** |
+| **총계** | **49** | **100%** |

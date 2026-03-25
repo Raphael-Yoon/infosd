@@ -167,23 +167,23 @@ def _update_session_progress(conn, company_id, year):
             (company_id, year)
         ).fetchall()}
 
+        # 답변 수 (status 판단용)
         none_hidden_ids = _get_none_hidden_ids(all_questions, answers)
         total, answered = 0, 0
         for q in all_questions:
             if q['type'] == 'group':
                 continue
-            # 스킵되거나 none_hides로 숨겨진 질문은 분모에서 제외
             if _is_question_skipped(q, questions_dict, answers) or q['id'] in none_hidden_ids:
                 continue
             total += 1
-            if _is_question_active(q, questions_dict, answers):
-                if _is_answer_valid(q['id'], q['type'], answers):
-                    answered += 1
+            if _is_question_active(q, questions_dict, answers) and _is_answer_valid(q['id'], q['type'], answers):
+                answered += 1
 
-        ev_required, ev_done = _calc_evidence_progress(conn, company_id, year, answers)
-        total_steps = total + ev_required
-        done_steps = answered + ev_done
-        rate = round((done_steps / total_steps) * 100) if total_steps > 0 else 0
+        # 진행률은 대시보드와 동일한 로직으로 계산 (증빙 포함)
+        cat_list = _calc_cat_progress_with_evidence(conn, all_questions, questions_dict, answers, company_id, year)
+        total_steps = sum(c['total'] for c in cat_list)
+        done_steps = sum(c['done'] for c in cat_list)
+        rate = int((done_steps / total_steps) * 100) if total_steps > 0 else 0
 
         # 현재 세션의 상태 확인 (이미 확정된 경우 유지)
         existing_status = None
@@ -431,9 +431,9 @@ def _calc_cat_progress_with_evidence(conn, all_questions, questions_dict, answer
             if eq['id'] in uploaded_ids:
                 ev_done += 1
         if ev_req > 0:
-            total_steps = cat['total'] + ev_req
-            done_steps = cat['done'] + ev_done
-            cat['rate'] = int((done_steps / total_steps) * 100) if total_steps > 0 else 0
+            cat['total'] += ev_req
+            cat['done'] += ev_done
+            cat['rate'] = int((cat['done'] / cat['total']) * 100) if cat['total'] > 0 else 0
     return cat_list
 
 
@@ -486,9 +486,14 @@ def dashboard():
         total_done = sum(c['done'] for c in cat_list)
         overall = int((total_done / total_q) * 100) if total_q > 0 else 0
 
+        # 세션 정보 조회
+        session_info = conn.execute(
+            'SELECT * FROM isd_sessions WHERE company_id=? AND year=?', (company_id, year)
+        ).fetchone() or {'status': 'draft'}
+
         # 투자 및 인력 비율 계산
         ratios = _calculate_ratios(conn, company_id, year, answers)
-        
+
         # 보유 인증 건수: Q16(인증 보유 현황) 테이블의 실제 행 수
         cert_count = 0
         if answers.get('Q16') and answers.get('Q15') not in (None, '', 'NO'):
@@ -501,10 +506,6 @@ def dashboard():
                     )
             except (json.JSONDecodeError, TypeError):
                 cert_count = 0
-        # 세션 정보 조회
-        session_info = conn.execute(
-            'SELECT * FROM isd_sessions WHERE company_id=? AND year=?', (company_id, year)
-        ).fetchone() or {'status': 'draft'}
 
     return render_template('disclosure/dashboard.html',
                            company=dict(company), year=year,
@@ -1014,13 +1015,11 @@ def review():
         # 투자 비율 계산
         ratios = _calculate_ratios(conn, company_id, year, answers)
 
-        # 전체 진행률 계산
-        cat_progress = _calc_cat_progress(all_questions, questions_dict, answers)
+        # 전체 진행률 계산 — dashboard와 동일한 로직 사용
+        cat_progress = _calc_cat_progress_with_evidence(conn, all_questions, questions_dict, answers, company_id, year)
         total_q = sum(c['total'] for c in cat_progress)
         total_done = sum(c['done'] for c in cat_progress)
-        ev_required, ev_done = _calc_evidence_progress(conn, company_id, year, answers)
-        total_steps = total_q + ev_required
-        overall = round(((total_done + ev_done) / total_steps) * 100) if total_steps > 0 else 0
+        overall = int((total_done / total_q) * 100) if total_q > 0 else 0
 
     return render_template('disclosure/review.html',
                            company=dict(company), year=year,
