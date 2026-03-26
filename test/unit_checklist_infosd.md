@@ -42,6 +42,9 @@
 ## 6. Audit Trail (변경 이력)
 
 - [ ] **test_audit_trail_recorded**: 답변 저장 후 isd_answer_history에 이력 기록 확인
+- [ ] **test_audit_trail_changed_by**: 답변 저장 후 changed_by에 'system' 대신 실제 사용자명 기록 확인
+- [ ] **test_audit_trail_partial_view**: `/history/<id>/<year>?partial=1` 응답에 HTML 테이블 포함 확인
+- [ ] **test_audit_trail_export_excel**: `/history/<id>/<year>/export` HTTP 200 및 xlsx Content-Type 확인
 
 ## 7. 데이터 무결성
 

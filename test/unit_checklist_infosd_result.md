@@ -1,4 +1,4 @@
-<!-- Test Run: 2026-03-24 18:18:09 -->
+<!-- Test Run: 2026-03-26 17:58:31 -->
 # infosd: 정보보호공시 시스템 테스트 시나리오
 
 ## 1. 회사·연도 관리
@@ -14,7 +14,7 @@
 
 - [x] ✅ **test_session_select**: 회사+연도 선택 후 대시보드 페이지 진입 확인 → **통과** (대시보드 진입 확인 (URL: http://localhost:5001/disclosure/))
 - [x] ✅ **test_dashboard_render**: 카테고리 카드 및 진행률 렌더링 확인 → **통과** (카테고리 카드 4개 렌더링 확인)
-- [x] ✅ **test_dashboard_card_progress_consistency**: 카드 done/total 수치 일관성 확인 → **통과** (completion_rate 유효 범위 확인 (31%))
+- [x] ✅ **test_dashboard_card_progress_consistency**: 카드 done/total 수치 일관성 확인 → **통과** (completion_rate 유효 범위 확인 (39%))
 - [x] ✅ **test_dashboard_category_navigation**: 카테고리 카드 클릭 → 작업 화면(work) 이동 확인 → **통과** (카테고리 클릭 → 작업 화면 이동 확인)
 
 ## 3. 답변 저장 및 검증 (핵심)
@@ -31,9 +31,9 @@
 
 ## 4. 증빙 자료 관리
 
-- [x] ✅ **test_evidence_upload**: 허용 확장자(PNG) 파일 업로드 성공 확인 → **통과** (PNG 업로드 성공 (id: 63f1ee18...))
+- [x] ✅ **test_evidence_upload**: 허용 확장자(PNG) 파일 업로드 성공 확인 → **통과** (PNG 업로드 성공 (id: daf0dcac...))
 - [x] ✅ **test_evidence_invalid_ext**: 비허용 확장자(exe) 파일 업로드 차단 확인 → **통과** (비허용 확장자 차단 확인 (status: 400))
-- [x] ✅ **test_evidence_delete**: 업로드된 증빙 파일 삭제 API 정상 동작 확인 → **통과** (증빙 삭제 성공 (ID: 67df3b7b...))
+- [x] ✅ **test_evidence_delete**: 업로드된 증빙 파일 삭제 API 정상 동작 확인 → **통과** (증빙 삭제 성공 (ID: 5812a077...))
 
 ## 5. 공시 확정 흐름
 
@@ -42,7 +42,10 @@
 
 ## 6. Audit Trail (변경 이력)
 
-- [x] ✅ **test_audit_trail_recorded**: 답변 저장 후 isd_answer_history에 이력 기록 확인 → **통과** (Audit Trail 이력 기록 확인 (422 → 423건))
+- [x] ✅ **test_audit_trail_recorded**: 답변 저장 후 isd_answer_history에 이력 기록 확인 → **통과** (Audit Trail 이력 기록 확인 (315 → 316건))
+- [x] ✅ **test_audit_trail_changed_by**: 답변 저장 후 changed_by에 'system' 대신 실제 사용자명 기록 확인 → **통과** (changed_by 정상 기록: '관리자')
+- [x] ✅ **test_audit_trail_partial_view**: `/history/<id>/<year>?partial=1` 응답에 HTML 테이블 포함 확인 → **통과** (partial HTML에 테이블 구조 포함 확인)
+- [x] ✅ **test_audit_trail_export_excel**: `/history/<id>/<year>/export` HTTP 200 및 xlsx Content-Type 확인 → **통과** (엑셀 다운로드 성공 (Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.))
 
 ## 7. 데이터 무결성
 
@@ -119,8 +122,8 @@
 
 | 항목 | 개수 | 비율 |
 |------|------|------|
-| ✅ 통과  | 49  | 100.0% |
+| ✅ 통과  | 52  | 100.0% |
 | ❌ 실패  | 0  | 0.0% |
 | ⚠️ 경고  | 0 | 0.0% |
 | ⊘ 건너뜀 | 0 | 0.0% |
-| **총계** | **49** | **100%** |
+| **총계** | **52** | **100%** |

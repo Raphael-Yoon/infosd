@@ -1,0 +1,39 @@
+<table class="table table-hover align-middle mb-0">
+    <thead class="table-light">
+        <tr>
+            <th class="ps-4" style="white-space:nowrap; width:140px;">변경 일시</th>
+            <th style="width:80px;">변경자</th>
+            <th style="width:220px;">문항</th>
+            <th>이전 데이터</th>
+            <th style="width:24px;"></th>
+            <th>변경 데이터</th>
+        </tr>
+    </thead>
+    <tbody class="border-top-0">
+        {% for item in history_data %}
+        <tr>
+            <td class="ps-4 text-muted small" style="white-space:nowrap;">{{ item.changed_at }}</td>
+            <td><span class="badge bg-secondary">{{ item.changed_by }}</span></td>
+            <td>
+                <strong class="text-primary">{{ item.display_number }}</strong><br>
+                <span class="small text-muted"
+                    style="max-width:200px; display:inline-block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+                    title="{{ item.q_text }}">{{ item.q_text }}</span>
+            </td>
+            <td class="text-danger" style="max-width:280px;">
+                <span class="text-decoration-line-through">
+                    {{ item.old_value | format_audit_value }}
+                </span>
+            </td>
+            <td class="text-center"><i class="fas fa-arrow-right text-primary opacity-50"></i></td>
+            <td class="text-success fw-bold" style="max-width:280px;">
+                {{ item.new_value | format_audit_value }}
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="6" class="text-center py-5 text-muted">변경 이력이 없습니다.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

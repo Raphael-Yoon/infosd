@@ -720,6 +720,80 @@ class InfosdUnitTest(PlaywrightTestBase):
         finally:
             conn.close()
 
+    # ─── Audit Trail 추가 검증 ────────────────────────────────────
+
+    def test_audit_trail_changed_by(self, result: UnitTestResult):
+        """Audit Trail: changed_by에 실제 사용자명 기록 확인 ('system' 아님)"""
+        company_id = self._ensure_session()
+        if not company_id:
+            result.skip_test("세션 구성 실패")
+            return
+
+        self._save("Q1", "YES")
+
+        conn = self._db_connect()
+        try:
+            row = conn.execute(
+                '''SELECT changed_by FROM isd_answer_history
+                   WHERE company_id=? AND year=? AND question_id="Q1"
+                   ORDER BY changed_at DESC LIMIT 1''',
+                (company_id, TEST_YEAR)
+            ).fetchone()
+
+            if not row:
+                result.warn_test("이력 행 없음")
+                return
+
+            changed_by = row['changed_by']
+            if changed_by and changed_by != 'system':
+                result.pass_test(f"changed_by 정상 기록: '{changed_by}'")
+            elif changed_by == 'system':
+                result.fail_test("changed_by가 여전히 'system' — 세션 사용자명 미반영")
+            else:
+                result.warn_test(f"changed_by 값 확인 필요: '{changed_by}'")
+        finally:
+            conn.close()
+
+    def test_audit_trail_partial_view(self, result: UnitTestResult):
+        """Audit Trail: ?partial=1 응답에 HTML 테이블 포함 확인"""
+        company_id = self._ensure_session()
+        if not company_id:
+            result.skip_test("세션 구성 실패")
+            return
+
+        resp = self._api("get", f"/disclosure/history/{company_id}/{TEST_YEAR}?partial=1")
+        if resp.status_code != 200:
+            result.fail_test(f"partial 응답 실패: {resp.status_code}")
+            return
+
+        body = resp.text
+        if "<table" in body and "<tbody" in body:
+            result.pass_test("partial HTML에 테이블 구조 포함 확인")
+        else:
+            result.fail_test("partial 응답에 테이블 마크업 없음")
+
+    def test_audit_trail_export_excel(self, result: UnitTestResult):
+        """Audit Trail: 엑셀 다운로드 HTTP 200 및 xlsx Content-Type 확인"""
+        company_id = self._ensure_session()
+        if not company_id:
+            result.skip_test("세션 구성 실패")
+            return
+
+        resp = self._api("get", f"/disclosure/history/{company_id}/{TEST_YEAR}/export")
+        if resp.status_code != 200:
+            result.fail_test(f"엑셀 다운로드 실패: {resp.status_code}")
+            return
+
+        ct = resp.headers.get("Content-Type", "")
+        cd = resp.headers.get("Content-Disposition", "")
+        if "spreadsheetml" in ct or "octet-stream" in ct:
+            result.pass_test(f"엑셀 다운로드 성공 (Content-Type: {ct[:60]})")
+        else:
+            result.warn_test(f"200 응답이나 Content-Type 확인 필요: {ct[:60]}")
+
+        if ".xlsx" not in cd:
+            result.warn_test(f"Content-Disposition에 .xlsx 없음: {cd[:80]}")
+
     # ─── 26. 재귀적 N/A 정리 ─────────────────────────────────────
 
     def test_recursive_na_cleanup(self, result: UnitTestResult):
@@ -1649,6 +1723,9 @@ def run_tests():
             runner.test_confirm_without_submit_blocked,
             # 6. Audit Trail
             runner.test_audit_trail_recorded,
+            runner.test_audit_trail_changed_by,
+            runner.test_audit_trail_partial_view,
+            runner.test_audit_trail_export_excel,
             # 7. 데이터 무결성
             runner.test_recursive_na_cleanup,
             runner.test_session_progress_update,

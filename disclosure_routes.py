@@ -1,12 +1,13 @@
 """
 infosd - 공시 작업 라우팅 (4+5단계)
 """
+import io
 import json
 import os
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from flask import (Blueprint, render_template, request, redirect,
-                   url_for, flash, jsonify, send_from_directory, abort, session)
+                   url_for, flash, jsonify, send_from_directory, abort, session, Response)
 from db_config import get_db, generate_uuid
 from auth import login_required, can_access_company
 
@@ -727,11 +728,12 @@ def save_answer():
                 ''', (answer_id, question_id, company_id, year, value))
 
             # 3-1. Audit Trail: 답변 변경 이력 기록
+            changed_by = session.get('user_name', 'system')
             conn.execute(
                 '''INSERT INTO isd_answer_history
-                   (company_id, year, question_id, old_value, new_value)
-                   VALUES (?, ?, ?, ?, ?)''',
-                (company_id, year, question_id, old_value, value)
+                   (company_id, year, question_id, old_value, new_value, changed_by)
+                   VALUES (?, ?, ?, ?, ?, ?)''',
+                (company_id, year, question_id, old_value, value, changed_by)
             )
 
             # 4. YES/NO 연동 처리 (Dependent questions cleansing)
@@ -930,11 +932,131 @@ def history_view(company_id, year):
         for r in rows:
             history_data.append(dict(r))
             
+    if request.args.get('partial'):
+        return render_template('disclosure/history_partial.html',
+                               company_name=company['name'],
+                               year=year,
+                               history_data=history_data)
     return render_template('disclosure/history.html',
                            company_name=company['name'],
                            company_id=company_id,
                            year=year,
                            history_data=history_data)
+
+
+@bp_disclosure.route('/history/<company_id>/<int:year>/export')
+@login_required
+def history_export(company_id, year):
+    """변경 이력 엑셀 다운로드"""
+    if not can_access_company(company_id):
+        abort(403)
+
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    with get_db() as conn:
+        company = conn.execute('SELECT name FROM isd_companies WHERE id=?', (company_id,)).fetchone()
+        if not company:
+            abort(404)
+        rows = conn.execute('''
+            SELECT h.changed_at, h.changed_by, h.old_value, h.new_value,
+                   q.text as q_text, q.display_number
+            FROM isd_answer_history h
+            LEFT JOIN isd_questions q ON h.question_id = q.id
+            WHERE h.company_id = ? AND h.year = ?
+            ORDER BY h.changed_at DESC
+        ''', (company_id, year)).fetchall()
+
+    def _format_value(value):
+        """JSON 값을 읽기 쉬운 문자열로 변환"""
+        if not value:
+            return '없음'
+        try:
+            parsed = json.loads(value)
+            if isinstance(parsed, list):
+                if not parsed:
+                    return '없음'
+                lines = []
+                for item in parsed:
+                    if isinstance(item, dict):
+                        parts = []
+                        if 'cert_type' in item:
+                            parts.append(item['cert_type'])
+                        vf, vt = item.get('valid_from', ''), item.get('valid_to', '')
+                        if vf and vt:
+                            parts.append(f'{vf} ~ {vt}')
+                        num = item.get('cert_number', '')
+                        if num:
+                            parts.append(f'No.{num}')
+                        lines.append(' | '.join(parts) if parts else str(item))
+                    else:
+                        lines.append(str(item))
+                return '\n'.join(lines)
+            return str(parsed)
+        except (json.JSONDecodeError, TypeError):
+            return value
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = '변경 이력'
+
+    # 헤더 스타일
+    header_fill = PatternFill(start_color='2C5265', end_color='2C5265', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF', size=10)
+    center = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    left = Alignment(horizontal='left', vertical='center', wrap_text=True)
+    thin = Side(style='thin', color='CCCCCC')
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    headers = ['변경 일시', '변경자', '문항 번호', '문항 내용', '이전 데이터', '변경 데이터']
+    col_widths = [20, 14, 12, 45, 40, 40]
+
+    for col, (h, w) in enumerate(zip(headers, col_widths), start=1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center
+        cell.border = border
+        ws.column_dimensions[get_column_letter(col)].width = w
+
+    ws.row_dimensions[1].height = 22
+
+    # 데이터 행
+    alt_fill = PatternFill(start_color='F5F8FA', end_color='F5F8FA', fill_type='solid')
+    for row_idx, r in enumerate(rows, start=2):
+        fill = alt_fill if row_idx % 2 == 0 else None
+        values = [
+            r['changed_at'],
+            r['changed_by'],
+            r['display_number'] or '',
+            r['q_text'] or '',
+            _format_value(r['old_value']),
+            _format_value(r['new_value']),
+        ]
+        for col, val in enumerate(values, start=1):
+            cell = ws.cell(row=row_idx, column=col, value=val)
+            cell.alignment = left if col > 2 else center
+            cell.border = border
+            if fill:
+                cell.fill = fill
+        ws.row_dimensions[row_idx].height = 18
+
+    # 파일명
+    safe_name = company['name'].replace(' ', '_')
+    filename = f'변경이력_{safe_name}_{year}.xlsx'
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    from urllib.parse import quote
+    encoded = quote(filename)
+    return Response(
+        buf.getvalue(),
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': f"attachment; filename*=UTF-8''{encoded}"}
+    )
 
 
 # ============================================================

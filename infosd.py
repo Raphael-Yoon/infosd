@@ -6,6 +6,7 @@ import hmac
 import hashlib
 import time
 import json
+from markupsafe import Markup
 from flask import Flask, render_template, jsonify
 from pathlib import Path
 import os
@@ -54,6 +55,43 @@ def from_json_or_default(value, default=None):
         return json.loads(value)
     except (json.JSONDecodeError, TypeError):
         return default
+
+
+@app.template_filter('format_audit_value')
+def format_audit_value(value):
+    """감사 로그 값(old_value/new_value)을 읽기 쉬운 HTML로 포맷.
+    JSON 배열(인증 목록 등)은 항목별 요약 텍스트로, 단순 문자열은 그대로 반환."""
+    if not value:
+        return Markup('<span class="text-muted fst-italic">없음</span>')
+    try:
+        parsed = json.loads(value)
+        if isinstance(parsed, list):
+            if not parsed:
+                return Markup('<span class="text-muted fst-italic">없음</span>')
+            lines = []
+            for item in parsed:
+                if isinstance(item, dict):
+                    parts = []
+                    if 'cert_type' in item:
+                        parts.append(f'<strong>{item["cert_type"]}</strong>')
+                    vf = item.get('valid_from', '')
+                    vt = item.get('valid_to', '')
+                    if vf and vt:
+                        parts.append(f'{vf} ~ {vt}')
+                    num = item.get('cert_number', '')
+                    if num:
+                        parts.append(f'No.{num}')
+                    lines.append(' | '.join(parts) if parts else ', '.join(f'{k}: {v}' for k, v in item.items()))
+                else:
+                    lines.append(str(item))
+            return Markup('<br>'.join(lines))
+        elif isinstance(parsed, dict):
+            parts = [f'<span class="text-muted small">{k}:</span> {v}' for k, v in parsed.items()]
+            return Markup('<br>'.join(parts))
+        else:
+            return str(parsed)
+    except (json.JSONDecodeError, TypeError):
+        return value
 
 
 @app.template_filter('comma')
