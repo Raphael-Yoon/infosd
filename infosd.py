@@ -23,6 +23,7 @@ from datetime import timedelta
 from company_routes import bp_company
 from disclosure_routes import bp_disclosure
 from login_routes import bp_login
+from checker_routes import bp_checker
 
 app = Flask(__name__)
 app.secret_key = os.getenv('infosd_SECRET_KEY', 'infosd-dev-secret-key-change-in-production')
@@ -112,6 +113,7 @@ def comma_filter(value):
 app.register_blueprint(bp_company)
 app.register_blueprint(bp_disclosure)
 app.register_blueprint(bp_login)
+app.register_blueprint(bp_checker)
 
 
 @app.route('/health')

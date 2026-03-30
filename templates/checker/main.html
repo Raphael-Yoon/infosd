@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}공시 대상 확인 — 정보보호공시 시스템{% endblock %}
+
+{% block head %}
+<style>
+    .checker-wrap {
+        max-width: 680px;
+        margin: 0 auto;
+        padding: 48px 16px 80px;
+    }
+    .checker-header {
+        text-align: center;
+        margin-bottom: 32px;
+    }
+    .checker-header .badge-step {
+        display: inline-block;
+        background: var(--primary, #4f46e5);
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        border-radius: 999px;
+        padding: 4px 14px;
+        margin-bottom: 12px;
+    }
+    .checker-header h2 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-main);
+        margin-bottom: 0;
+    }
+    .progress-wrap {
+        margin-bottom: 28px;
+    }
+    .progress-wrap .progress-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        margin-bottom: 6px;
+    }
+    .checker-card {
+        background: var(--bg-surface, #fff);
+        border: 1px solid var(--border-color, #e5e7eb);
+        border-radius: 16px;
+        padding: 36px 32px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .checker-question {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-main);
+        margin-bottom: 10px;
+        line-height: 1.55;
+    }
+    .checker-hint {
+        font-size: 0.83rem;
+        color: var(--text-muted);
+        margin-bottom: 28px;
+        padding: 10px 14px;
+        background: var(--bg-main);
+        border-left: 3px solid var(--primary, #4f46e5);
+        border-radius: 0 8px 8px 0;
+        line-height: 1.7;
+        white-space: pre-line;
+    }
+    .choice-btn {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 16px 20px;
+        margin-bottom: 12px;
+        background: var(--bg-surface, #fff);
+        border: 2px solid var(--border-color, #e5e7eb);
+        border-radius: 12px;
+        font-size: 0.97rem;
+        font-weight: 600;
+        color: var(--text-main);
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    }
+    .choice-btn:hover {
+        border-color: var(--primary, #4f46e5);
+        background: rgba(79, 70, 229, 0.04);
+        box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+    }
+    .choice-btn.selected {
+        border-color: var(--primary, #4f46e5);
+        background: rgba(79, 70, 229, 0.07);
+    }
+    .choice-btn .choice-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: 2px solid var(--border-color, #e5e7eb);
+        margin-right: 12px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        flex-shrink: 0;
+        transition: border-color 0.15s, background 0.15s, color 0.15s;
+    }
+    .choice-btn:hover .choice-icon,
+    .choice-btn.selected .choice-icon {
+        border-color: var(--primary, #4f46e5);
+        background: var(--primary, #4f46e5);
+        color: #fff;
+    }
+    .checker-footer {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 24px;
+    }
+    .btn-back {
+        flex-shrink: 0;
+        background: none;
+        border: 1px solid var(--border-color, #ddd);
+        color: var(--text-muted);
+        border-radius: 10px;
+        padding: 9px 20px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: border-color 0.15s, color 0.15s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .btn-back:hover {
+        border-color: var(--primary, #4f46e5);
+        color: var(--primary, #4f46e5);
+    }
+    .btn-submit {
+        flex: 1;
+        background: var(--primary, #4f46e5);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        padding: 11px 24px;
+        font-size: 0.97rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: opacity 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    .btn-submit:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+    .btn-submit:not(:disabled):hover {
+        opacity: 0.88;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="checker-wrap">
+    <!-- 헤더 -->
+    <div class="checker-header">
+        <div class="badge-step">
+            <i class="bi bi-shield-check me-1"></i>공시 대상 확인
+        </div>
+        <h2>정보보호공시 의무 대상 여부 판별</h2>
+        <p class="text-muted mt-2" style="font-size:0.88rem;">단계별 질문에 답하면 의무 공시 대상 여부를 확인할 수 있습니다.</p>
+    </div>
+
+    <!-- 프로그레스 바 -->
+    <div class="progress-wrap">
+        <div class="progress-label">
+            <span>{{ step.title }}</span>
+            <span>{{ progress_num }} / {{ step.progress_max }} 단계</span>
+        </div>
+        <div class="progress" style="height: 8px; border-radius: 999px;">
+            <div class="progress-bar"
+                 role="progressbar"
+                 style="width: {{ ((progress_num / step.progress_max) * 100) | int }}%; background: var(--primary, #4f46e5); border-radius: 999px; transition: width 0.4s;"
+                 aria-valuenow="{{ progress_num }}"
+                 aria-valuemin="0"
+                 aria-valuemax="{{ step.progress_max }}">
+            </div>
+        </div>
+    </div>
+
+    <!-- 질문 카드 -->
+    <div class="checker-card">
+        <p class="checker-question">
+            <span style="color: var(--primary, #4f46e5); margin-right: 6px;">Q.</span>{{ step.question }}
+        </p>
+        {% if step.hint %}
+        <div class="checker-hint">
+            <i class="bi bi-lightbulb me-1"></i>{{ step.hint }}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('checker.step') }}" id="checker-form">
+            <input type="hidden" name="step_id" value="{{ step.id }}">
+            <input type="hidden" name="answer" id="selected-answer" value="">
+
+            {% set alpha = ['A','B','C','D','E'] %}
+            {% for choice in step.choices %}
+            <button type="button"
+                    class="choice-btn"
+                    data-value="{{ choice.value }}"
+                    onclick="selectChoice(this)">
+                <span style="display:flex; align-items:center;">
+                    <span class="choice-icon">{{ alpha[loop.index0] }}</span>
+                    {{ choice.label }}
+                </span>
+            </button>
+            {% endfor %}
+
+            <div class="checker-footer">
+                {% if progress_num > 1 %}
+                <a href="{{ url_for('checker.main') }}" class="btn-back" onclick="return goBack(event)">
+                    <i class="bi bi-arrow-left"></i> 이전 단계로
+                </a>
+                {% else %}
+                <span></span>
+                {% endif %}
+                <button type="submit" class="btn-submit" id="submit-btn" disabled>
+                    다음 단계로 <i class="bi bi-arrow-right"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 안내 문구 -->
+    <p class="text-center mt-4" style="font-size: 0.8rem; color: var(--text-muted, #aaa);">
+        <i class="bi bi-info-circle me-1"></i>
+        이 서비스는 일반적인 판별 기준을 안내하며, 정확한 법적 판단은 전문가에게 문의하시기 바랍니다.
+    </p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function selectChoice(btn) {
+        // 기존 선택 해제
+        document.querySelectorAll('.choice-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        document.getElementById('selected-answer').value = btn.dataset.value;
+        document.getElementById('submit-btn').disabled = false;
+    }
+
+    function goBack(e) {
+        e.preventDefault();
+        history.back();
+        return false;
+    }
+
+    // 폼 제출 시 버튼 비활성화 (이중 제출 방지)
+    document.getElementById('checker-form').addEventListener('submit', function() {
+        document.getElementById('submit-btn').disabled = true;
+        document.getElementById('submit-btn').innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>처리 중...';
+    });
+</script>
+{% endblock %}

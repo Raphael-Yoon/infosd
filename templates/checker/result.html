@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}공시 대상 확인 결과 — 정보보호공시 시스템{% endblock %}
+
+{% block head %}
+<style>
+    .result-wrap {
+        max-width: 680px;
+        margin: 0 auto;
+        padding: 48px 16px 80px;
+    }
+    .result-header {
+        text-align: center;
+        margin-bottom: 36px;
+    }
+    .result-icon-wrap {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.2rem;
+        margin: 0 auto 20px;
+    }
+    .result-icon-wrap.danger  { background: rgba(220,53,69,0.12);  color: #dc3545; }
+    .result-icon-wrap.warning { background: rgba(255,193,7,0.15);  color: #d39e00; }
+    .result-icon-wrap.success { background: rgba(25,135,84,0.12);  color: #198754; }
+    .result-icon-wrap.info    { background: rgba(13,202,240,0.12); color: #0dcaf0; }
+
+    .result-badge {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 6px 20px;
+        font-size: 0.92rem;
+        font-weight: 700;
+        margin-bottom: 12px;
+    }
+    .result-badge.danger  { background: #dc3545; color: #fff; }
+    .result-badge.warning { background: #ffc107; color: #333; }
+    .result-badge.success { background: #198754; color: #fff; }
+    .result-badge.info    { background: #0dcaf0; color: #000; }
+
+    .result-title {
+        font-size: 1.45rem;
+        font-weight: 800;
+        color: var(--text-main);
+        margin-bottom: 8px;
+    }
+    .result-desc {
+        font-size: 0.93rem;
+        color: var(--text-muted);
+        line-height: 1.6;
+        max-width: 480px;
+        margin: 0 auto;
+    }
+    .result-card {
+        background: var(--bg-surface, #fff);
+        border: 1px solid var(--border-color, #e5e7eb);
+        border-radius: 16px;
+        padding: 28px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        margin-bottom: 20px;
+    }
+    .result-card-title {
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .reason-box {
+        background: var(--bg-main);
+        border-left: 4px solid;
+        border-radius: 0 10px 10px 0;
+        padding: 14px 18px;
+        font-size: 0.92rem;
+        color: var(--text-main);
+        line-height: 1.6;
+    }
+    .reason-box.danger  { border-color: #dc3545; }
+    .reason-box.warning { border-color: #ffc107; }
+    .reason-box.success { border-color: #198754; }
+
+    .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.88rem;
+    }
+    .history-table th {
+        padding: 8px 12px;
+        background: var(--bg-main);
+        color: var(--text-muted);
+        font-weight: 600;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color, #eee);
+    }
+    .history-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border-color, #f0f0f0);
+        vertical-align: top;
+        color: var(--text-main);
+        line-height: 1.45;
+    }
+    .history-table tr:last-child td { border-bottom: none; }
+    .history-table .q-col { width: 60%; }
+    .history-table .a-col { width: 40%; }
+    .answer-badge {
+        display: inline-block;
+        background: rgba(79, 70, 229, 0.09);
+        color: var(--primary, #4f46e5);
+        border-radius: 6px;
+        padding: 2px 10px;
+        font-weight: 600;
+        font-size: 0.83rem;
+    }
+
+    .deadline-box {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        background: rgba(79, 70, 229, 0.06);
+        border: 1px solid rgba(79, 70, 229, 0.15);
+        border-radius: 12px;
+        padding: 16px 20px;
+    }
+    .deadline-icon {
+        font-size: 1.6rem;
+        color: var(--primary, #4f46e5);
+        flex-shrink: 0;
+    }
+    .deadline-text .label {
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        color: var(--primary, #4f46e5);
+        margin-bottom: 2px;
+    }
+    .deadline-text .value {
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: var(--text-main);
+    }
+    .deadline-text .sub {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .btn-restart {
+        flex: 1;
+        min-width: 200px;
+        border: 2px solid var(--border-color, #ddd);
+        background: none;
+        color: var(--text-main);
+        border-radius: 12px;
+        padding: 13px 20px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        text-align: center;
+        text-decoration: none;
+        transition: border-color 0.15s, color 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    .btn-restart:hover {
+        border-color: var(--primary, #4f46e5);
+        color: var(--primary, #4f46e5);
+    }
+    .btn-start {
+        flex: 1;
+        min-width: 200px;
+        background: var(--primary, #4f46e5);
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        padding: 13px 20px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        text-align: center;
+        text-decoration: none;
+        transition: opacity 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    .btn-start:hover { opacity: 0.88; color: #fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="result-wrap">
+
+    <!-- 결과 헤더 -->
+    <div class="result-header">
+        <div class="result-icon-wrap {{ result.badge_class }}">
+            <i class="bi {{ result.icon }}"></i>
+        </div>
+        <div class="result-badge {{ result.badge_class }}">
+            {% if result.type == 'MANDATORY' or result.type == 'MANDATORY_2027' %}
+                <i class="bi bi-exclamation-circle me-1"></i>의무 공시 대상
+            {% elif result.type == 'VOLUNTARY' %}
+                <i class="bi bi-info-circle me-1"></i>자율 공시 가능
+            {% else %}
+                <i class="bi bi-check-circle me-1"></i>의무 대상 아님
+            {% endif %}
+        </div>
+        <div class="result-title">{{ result.title }}</div>
+        <p class="result-desc">{{ result.description }}</p>
+    </div>
+
+    <!-- 판단 근거 -->
+    <div class="result-card">
+        <div class="result-card-title">
+            <i class="bi bi-file-earmark-text"></i> 판단 근거
+        </div>
+        <div class="reason-box {{ result.badge_class }}">
+            <i class="bi bi-check2 me-2"></i>{{ reason }}
+        </div>
+    </div>
+
+    <!-- 답변 이력 -->
+    {% if history %}
+    <div class="result-card">
+        <div class="result-card-title">
+            <i class="bi bi-list-check"></i> 답변 이력 요약
+        </div>
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th class="q-col">질문</th>
+                    <th class="a-col">선택한 답변</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in history %}
+                <tr>
+                    <td>{{ item.question }}</td>
+                    <td><span class="answer-badge">{{ item.answer_label }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- 공시 기한 안내 (의무 대상인 경우) -->
+    {% if result.type in ['MANDATORY', 'MANDATORY_2027'] %}
+    <div class="result-card">
+        <div class="result-card-title">
+            <i class="bi bi-calendar-event"></i> 공시 기한 안내
+        </div>
+        <div class="deadline-box">
+            <div class="deadline-icon">
+                <i class="bi bi-calendar-check"></i>
+            </div>
+            <div class="deadline-text">
+                <div class="label">연간 공시 마감일</div>
+                <div class="value">매년 6월 30일</div>
+                <div class="sub">전년도 현황을 당해년도 6월 30일까지 공시 완료해야 합니다.</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 액션 버튼 -->
+    <div class="action-buttons mt-4">
+        <a href="{{ url_for('checker.main') }}" class="btn-restart">
+            <i class="bi bi-arrow-counterclockwise"></i> 처음부터 다시 확인하기
+        </a>
+        {% if session.user_id %}
+        <a href="{{ url_for('company.index') }}" class="btn-start">
+            <i class="bi bi-pencil-square"></i> 공시 작업 시작하기
+        </a>
+        {% endif %}
+    </div>
+
+    {% if not session.user_id %}
+    <p class="text-center mt-3" style="font-size: 0.82rem; color: var(--text-muted);">
+        <i class="bi bi-lock me-1"></i>
+        공시 작업을 시작하려면 <a href="{{ url_for('login.login_page') }}" style="color: var(--primary, #4f46e5);">로그인</a>이 필요합니다.
+    </p>
+    {% endif %}
+
+    <!-- KISA 공식 확인 안내 -->
+    <div style="margin-top: 28px; padding: 18px 20px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 12px;">
+        <div style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; letter-spacing: 0.04em;">
+            <i class="bi bi-shield-check me-1"></i> 공식 대상 기업 확인
+        </div>
+        <p style="font-size: 0.84rem; color: var(--text-main); margin-bottom: 10px; line-height: 1.6;">
+            KISA(한국인터넷진흥원)는 매년 의무 공시 대상 기업 명단을 공식 발표합니다.<br>
+            이 판별 결과는 일반적인 기준에 따른 안내이므로, <strong>정확한 의무 여부는 반드시 KISA 공시 포털에서 확인</strong>하시기 바랍니다.
+        </p>
+        <a href="https://isds.kisa.or.kr" target="_blank" rel="noopener noreferrer"
+           style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.84rem; font-weight: 700; color: var(--primary, #4f46e5); text-decoration: none;">
+            <i class="bi bi-box-arrow-up-right"></i> KISA 정보보호공시 종합포털 바로가기 (isds.kisa.or.kr)
+        </a>
+    </div>
+
+    <p class="text-center mt-3" style="font-size: 0.78rem; color: var(--text-muted);">
+        <i class="bi bi-info-circle me-1"></i>
+        이 판별 결과는 일반적인 안내 목적으로 제공됩니다. 정확한 의무 여부는 관련 법령 및 전문가 확인을 권장합니다.
+    </p>
+</div>
+{% endblock %}

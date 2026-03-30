@@ -44,6 +44,9 @@
             <i class="fas fa-user-circle me-1"></i>{{ session.user_name }}
         </span>
         {% endif %}
+        <a href="/checker" class="btn btn-sm btn-outline-info rounded-pill px-3 fw-bold ms-2" style="font-size: 0.8rem;">
+            <i class="bi bi-shield-check me-1"></i>공시 대상 확인
+        </a>
         <div style="flex: 1;"></div>
         {% if session.original_admin_id %}
         <a href="{{ url_for('login.admin_switch_back') }}" class="btn btn-sm btn-warning rounded-pill px-3 fw-bold" style="font-size: 0.8rem;">
@@ -62,6 +65,11 @@
         </form>
     </nav>
     {% endif %}
+
+    <!-- Checker Floating Button (공시 대상 확인) -->
+    <a href="/checker" class="theme-toggle-btn" style="right: 136px; background: linear-gradient(135deg, #0ea5e9, #2563eb); color: white; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size: 1rem;" title="공시 대상 확인">
+        <i class="bi bi-shield-check"></i>
+    </a>
 
     <!-- Theme Toggle Floating Button -->
     <button type="button" class="theme-toggle-btn" id="theme-toggle" onclick="toggleTheme()" title="테마 변경">
