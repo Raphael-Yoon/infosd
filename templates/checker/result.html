@@ -213,7 +213,7 @@
             {% elif result.type == 'VOLUNTARY' %}
                 <i class="bi bi-info-circle me-1"></i>자율 공시 가능
             {% else %}
-                <i class="bi bi-check-circle me-1"></i>의무 대상 아님
+                <i class="bi bi-check-circle me-1"></i>공시 의무 없음
             {% endif %}
         </div>
         <div class="result-title">{{ result.title }}</div>
@@ -234,7 +234,7 @@
     {% if history %}
     <div class="result-card">
         <div class="result-card-title">
-            <i class="bi bi-list-check"></i> 답변 이력 요약
+            <i class="bi bi-list-check"></i> 확인 과정 요약
         </div>
         <table class="history-table">
             <thead>
@@ -268,7 +268,7 @@
             <div class="deadline-text">
                 <div class="label">연간 공시 마감일</div>
                 <div class="value">매년 6월 30일</div>
-                <div class="sub">전년도 현황을 당해년도 6월 30일까지 공시 완료해야 합니다.</div>
+                <div class="sub">전년도 현황을 당해 연도 6월 30일까지 공시 완료해야 합니다.</div>
             </div>
         </div>
     </div>
@@ -277,7 +277,7 @@
     <!-- 액션 버튼 -->
     <div class="action-buttons mt-4">
         <a href="{{ url_for('checker.main') }}" class="btn-restart">
-            <i class="bi bi-arrow-counterclockwise"></i> 처음부터 다시 확인하기
+            <i class="bi bi-arrow-counterclockwise"></i> 처음으로 돌아가기
         </a>
         {% if session.user_id %}
         <a href="{{ url_for('company.index') }}" class="btn-start">
@@ -308,9 +308,5 @@
         </a>
     </div>
 
-    <p class="text-center mt-3" style="font-size: 0.78rem; color: var(--text-muted);">
-        <i class="bi bi-info-circle me-1"></i>
-        이 판별 결과는 일반적인 안내 목적으로 제공됩니다. 정확한 의무 여부는 관련 법령 및 전문가 확인을 권장합니다.
-    </p>
 </div>
 {% endblock %}
