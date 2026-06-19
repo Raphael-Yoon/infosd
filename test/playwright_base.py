@@ -7,7 +7,7 @@ Playwright를 활용한 E2E 테스트의 기본 기능을 제공합니다.
 - 스크린샷 캡처
 - 테스트 결과 리포팅
 
-(snowball playwright_base.py 구조 참조, infosd 포트 5001로 적용)
+(snowball playwright_base.py 구조 참조, infosd 포트 5003으로 적용)
 """
 
 import os
@@ -93,7 +93,7 @@ class UnitTestResult:
 class PlaywrightTestBase:
     """infosd Playwright 테스트 베이스 클래스"""
 
-    def __init__(self, base_url: str = "http://localhost:5001",
+    def __init__(self, base_url: str = "http://localhost:5003",
                  headless: bool = True, slow_mo: int = 0):
         self.base_url = base_url
         self.headless = headless

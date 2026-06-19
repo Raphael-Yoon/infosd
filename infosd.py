@@ -135,7 +135,7 @@ def server_error(e):
 
 
 if __name__ == '__main__':
-    port = int(os.getenv('infosd_PORT', 5001))
+    port = int(os.getenv('infosd_PORT', 5003))
     debug = os.getenv('FLASK_ENV', 'development') == 'development'
     print(f"\n infosd 서버 시작 — http://localhost:{port}")
     app.run(host='0.0.0.0', port=port, debug=debug)
