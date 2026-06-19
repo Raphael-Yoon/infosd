@@ -38,8 +38,12 @@ bp_login = Blueprint('login', __name__)
 
 
 def _is_local():
-    """로컬호스트 접근 여부 확인"""
-    return request.remote_addr in ('127.0.0.1', '::1')
+    """환경변수 기준 운영서버 여부를 확인하여 로컬 관리자 로그인 허용 여부 반환"""
+    import os
+    is_prod = (os.getenv('RUN_MODE') == 'prod') or \
+              (os.getenv('FLASK_ENV') == 'production') or \
+              (os.getenv('IS_PROD') == 'true')
+    return not is_prod
 
 
 @bp_login.route('/login', methods=['GET'])

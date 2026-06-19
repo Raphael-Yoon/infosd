@@ -10,9 +10,11 @@ from markupsafe import Markup
 from flask import Flask, render_template, jsonify
 from pathlib import Path
 import os
+from dotenv import load_dotenv
 
 _APP_DIR = Path(__file__).parent.resolve()
 os.chdir(_APP_DIR)
+load_dotenv(_APP_DIR / '.env')
 
 # DB 마이그레이션 자동 실행 (앱 시작 시 미적용 마이그레이션 자동 반영)
 from migrations.migration_manager import MigrationManager
