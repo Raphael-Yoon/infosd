@@ -38,12 +38,9 @@ bp_login = Blueprint('login', __name__)
 
 
 def _is_local():
-    """환경변수 기준 운영서버 여부를 확인하여 로컬 관리자 로그인 허용 여부 반환"""
+    """환경변수 IS_PROD 기준으로만 운영/개발을 단일화하여 판별"""
     import os
-    is_prod = (os.getenv('RUN_MODE') == 'prod') or \
-              (os.getenv('FLASK_ENV') == 'production') or \
-              (os.getenv('IS_PROD') == 'true')
-    return not is_prod
+    return os.getenv('IS_PROD', 'false').strip().lower() != 'true'
 
 
 @bp_login.route('/login', methods=['GET'])
