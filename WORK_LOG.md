@@ -2,6 +2,29 @@
 
 ---
 
+## 2026-06-19 (v1.19)
+
+### 변경 내역
+- [기능] Gunicorn 프로세스 격리용 운영 쉘 스크립트 3종 구현
+  - 타 Gunicorn 프로세스(커피하우스 등)와의 기동/종료 간섭을 방지하도록 PID 파일 및 프로세스 명칭 패턴 매칭 적용
+  - `infosd_start.sh`, `infosd_stop.sh`, `infosd_reset.sh` 추가
+- [설정] 운영 포트 변경 및 배포 문서 작성
+  - 개발1팀(snowball)의 5001번 포트 점유에 따라 infosd 운영 포트를 5003번으로 변경
+  - `DEPLOY.md`를 신규 생성하여 전체 운영 서버 배포 아키텍처 및 롤링 백업 가이드 명시
+- [버그] `003_seed_questions.py` 마이그레이션 중복 키 위반 오류 수정
+  - DB 중복 데이터 유무와 상관없이 마이그레이션이 성공하도록 `INSERT OR REPLACE INTO` 문법으로 변경
+- [설정] `.gitignore` 갱신
+  - Gunicorn 기동 시 생성되는 런타임 파일인 `*.pid` 추적 제외 추가
+
+### 변경 파일
+- `infosd_start.sh`: Gunicorn 개별 기동 스크립트 (신규)
+- `infosd_stop.sh`: Gunicorn 개별 종료 스크립트 (신규)
+- `infosd_reset.sh`: 최신화 후 재구동 스크립트 (신규)
+- `DEPLOY.md`: 배포 가이드 문서 (신규)
+- `migrations/versions/003_seed_questions.py`: 중복 키 위반 예방 구문 패치
+- `.gitignore`: `*.pid` 무시 설정 추가
+- `WORK_LOG.md`: 작업 로그 최신화
+
 ## 2026-03-19 (v1.18)
 
 ### 변경 내역

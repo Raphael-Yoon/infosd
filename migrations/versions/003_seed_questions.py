@@ -293,7 +293,7 @@ def upgrade(conn):
         dep_ids = json.dumps(q["dependent_question_ids"], ensure_ascii=False) if "dependent_question_ids" in q else None
 
         conn.execute('''
-            INSERT INTO isd_questions
+            INSERT OR REPLACE INTO isd_questions
             (id, display_number, level, category_id, category, subcategory,
              text, type, options, parent_question_id, dependent_question_ids,
              sort_order, help_text)

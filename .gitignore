@@ -38,3 +38,4 @@ logs/
 test_*.py
 *_test.py
 test/screenshots/
+*.pid
