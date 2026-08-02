@@ -19,7 +19,7 @@ sleep 1
 
 # 3. 127.0.0.1:5003번 포트로 백그라운드 구동 (PID 파일 지정)
 echo "Starting Gunicorn server on port 5003..."
-nohup /home/raphael/Dev/pythons/.venv/bin/gunicorn --workers 2 --bind 127.0.0.1:5003 --pid "$PID_FILE" infosd:app > flask.log 2>&1 &
+/home/raphael/Dev/pythons/.venv/bin/gunicorn --daemon --workers 2 --bind 127.0.0.1:5003 --pid "$PID_FILE" infosd:app > flask.log 2>&1
 
 # 4. 결과 출력
 echo "------------------------------------------------"
