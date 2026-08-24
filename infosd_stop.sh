@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# 1. PID 파일이 존재하면 해당 프로세스 종료
-PID_FILE="/home/raphael/Dev/pythons/infosd/infosd.pid"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PID_FILE="$SCRIPT_DIR/infosd.pid"
 if [ -f "$PID_FILE" ]; then
     PID=$(cat "$PID_FILE")
     if ps -p $PID > /dev/null 2>&1; then

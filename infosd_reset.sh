@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# 1. 프로젝트 폴더 위치로 이동
-cd /home/raphael/Dev/pythons/infosd
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 # 2. 깃허브 최신 코드 pull 시도
 echo "Pulling latest code from origin master..."

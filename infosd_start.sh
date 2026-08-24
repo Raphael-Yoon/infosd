@@ -1,7 +1,10 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_DIR="$(dirname "$SCRIPT_DIR")"
+
 # 1. 기존에 돌고 있는 infosd 관련 Gunicorn 프로세스만 종료 (PID 파일 활용)
-PID_FILE="/home/raphael/Dev/pythons/infosd/infosd.pid"
+PID_FILE="$SCRIPT_DIR/infosd.pid"
 if [ -f "$PID_FILE" ]; then
     PID=$(cat "$PID_FILE")
     if ps -p $PID > /dev/null 2>&1; then
@@ -19,7 +22,7 @@ sleep 1
 
 # 3. 127.0.0.1:5003번 포트로 백그라운드 구동 (PID 파일 지정)
 echo "Starting Gunicorn server on port 5003..."
-/home/raphael/Dev/pythons/.venv/bin/gunicorn --daemon --workers 2 --bind 127.0.0.1:5003 --pid "$PID_FILE" infosd:app > flask.log 2>&1
+"$WORKSPACE_DIR/.venv/bin/gunicorn" --daemon --workers 2 --bind 127.0.0.1:5003 --pid "$PID_FILE" infosd:app > flask.log 2>&1
 
 # 4. 결과 출력
 echo "------------------------------------------------"
