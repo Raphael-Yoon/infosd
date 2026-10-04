@@ -38,8 +38,32 @@ bp_login = Blueprint('login', __name__)
 
 
 def _is_local():
-    """환경변수 IS_PROD 기준으로만 운영/개발을 단일화하여 판별"""
+    """접속 도메인(Host) 및 환경변수(IS_PROD) 기반 관리자 빠른 로그인 허용 여부 판별
+    - infosd.snowball1566.com (공식 운영 도메인): 비활성화 (기존 상태 유지, OTP 필수)
+    - infosd.snowball.pe.kr (내부/관리 도메인): 활성화 (관리자 빠른 로그인 허용)
+    - localhost / 127.0.0.1 / 개발 환경: 활성화
+    """
     import os
+    from flask import request, has_request_context
+
+    # 1. HTTP 요청 컨텍스트가 존재하는 경우 도메인(Host) 헤더 판별
+    if has_request_context():
+        raw_host = request.headers.get('X-Forwarded-Host') or request.host or ''
+        host = raw_host.split(':')[0].strip().lower()
+
+        # 공식 운영 도메인은 엄격히 비활성화
+        if 'snowball1566.com' in host:
+            return False
+
+        # 내부 관리/테스트 도메인은 즉시 활성화
+        if 'snowball.pe.kr' in host:
+            return True
+
+        # 로컬 루프백 호스트 활성화
+        if host in ('localhost', '127.0.0.1', '0.0.0.0', 'testclient'):
+            return True
+
+    # 2. 요청 컨텍스트 외부이거나 기타 호스트인 경우 IS_PROD 환경변수 기준 판별
     return os.getenv('IS_PROD', 'false').strip().lower() != 'true'
 
 
@@ -100,9 +124,9 @@ def tour():
 
 @bp_login.route('/login/local', methods=['POST'])
 def local_admin_login():
-    """로컬 환경 전용 — 첫 번째 어드민 계정으로 즉시 로그인 (OTP 생략)"""
+    """로컬 및 내부 관리 도메인 전용 — 첫 번째 어드민 계정으로 즉시 로그인 (OTP 생략)"""
     if not _is_local():
-        return "로컬 환경에서만 사용 가능합니다.", 403
+        return "접근 권한이 없거나 지원되지 않는 도메인입니다.", 403
 
     from auth import get_db
     with get_db() as conn:
